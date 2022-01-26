@@ -28,7 +28,7 @@ key_map = {
     "Int_t": "/exchange/frameSum",
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
-    # "t_begin": "/measurement/instrument/source_begin/datetime",
+    "t_begin": "/measurement/instrument/source_begin/datetime",
     # "t_end": "/measurement/instrument/source_end/datetime",
 }
 
@@ -155,14 +155,14 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     vmin, vmax = find_min_max(saxs, 1, 99.9)
     im0 = ax[0].imshow(saxs, origin='lower', cmap=plt.cm.jet,
                        interpolation=None, vmin=vmin, vmax=vmax)
-    ax[0].set_title('scattering pattern')
+    ax[0].set_title('Scattering pattern')
     divider0 = make_axes_locatable(ax[0])
     cax0 = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im0, cax=cax0)
 
     im1 = ax[1].imshow(dqmap, origin='lower', cmap=plt.cm.jet,
                        interpolation=None)
-    ax[1].set_title('dynamic qmap')
+    ax[1].set_title('Dynamic qmap')
     divider1 = make_axes_locatable(ax[1])
     cax1 = divider1.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im1, cax=cax1)
@@ -275,7 +275,7 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
         raise NotImplementedError
 
     html_dict.update(img_description)
-    convert_to_html(save_dir, html_dict)
+    convert_to_html(save_dir, info['t_begin'].decode(), html_dict)
 
     if target_dir is not None and os.path.isdir(target_dir):
         shutil.move(save_dir, target_dir)

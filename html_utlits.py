@@ -2,12 +2,13 @@ import jinja2
 import os
 
 
-def convert_to_html(title, data_dict):
+def convert_to_html(title, timestamp, data_dict):
     outputfile = title + '.html'
 
     subs = jinja2.Environment(
         loader=jinja2.FileSystemLoader('./')
-    ).get_template('template.html').render(title=title, mydata=data_dict)
+    ).get_template('template.html').render(title=title, mydata=data_dict,
+    	timestamp=timestamp)
 
     # lets write the substitution to a file
     with open(outputfile, 'w') as f:
