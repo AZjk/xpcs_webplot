@@ -28,6 +28,8 @@ key_map = {
     "Int_t": "/exchange/frameSum",
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
+    "t_begin": "/measurement/instrument/source_begin/datetime",
+    "t_end": "/measurement/instrument/source_end/datetime",
 }
 
 
@@ -70,7 +72,7 @@ def plot_roi_mask(fig, ax, roi_mask, num_img):
     roi_mask[roi_mask < 2] = np.nan
     roi_mask -= 1
     im = ax.imshow(roi_mask, origin='lower', cmap=plt.cm.gray, vmin=0,
-                    vmax=num_img + 1)
+                   vmax=num_img + 1)
     divider0 = make_axes_locatable(ax)
     cax = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im, cax=cax)
@@ -80,10 +82,10 @@ def plot_roi_mask(fig, ax, roi_mask, num_img):
 
 def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
                       num_img=4, dpi=240):
-        
+
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
-    
+
     plot_roi_mask(fig, ax[0], roi_mask, num_img)
 
     for n in range(g2.shape[0]):
@@ -97,15 +99,15 @@ def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
         bx.set_xlabel('t (s)')
         bx.set_ylabel('g2')
         bx.set_title(label[n])
-    
+
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
     plt.close(fig)
 
 
 def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
-                      num_img=4, dpi=240):
-    
+                     num_img=4, dpi=240):
+
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
@@ -158,7 +160,7 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     cax0 = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im0, cax=cax0)
 
-    im1 = ax[1].imshow(dqmap, origin='lower', cmap=plt.cm.jet, 
+    im1 = ax[1].imshow(dqmap, origin='lower', cmap=plt.cm.jet,
                        interpolation=None)
     ax[1].set_title('dynamic qmap')
     divider1 = make_axes_locatable(ax[1])
@@ -184,12 +186,7 @@ def convert_to_html(title, data_dict):
         f.write(subs)
 
 
-def convert_one_twotime(fname,
-        prefix='/home/8ididata/2021-3/xmlin202112/cluster_results',
-        num_img=4,
-        dpi=120,
-        ):
-
+def convert_one_twotime(fname, prefix='./', num_img=4, dpi=120):
     save_dir = os.path.splitext(fname)[0]
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
@@ -214,27 +211,30 @@ def convert_one_twotime(fname,
                 else:
                     break
             info['tau'] = c2.shape[0]
-    
+
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
     info['t_el'] = delta_t * info['tau']
 
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
-                                       info['dqmap'], save_dir)
+                                      info['dqmap'], save_dir)
     # update the dynamic qmap with a cropped one
     info['dqmap'] = dqmap
     info['mask'] = mask
 
     html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
 
-    fname = plot_stability(info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
+    fname = plot_stability(
+        info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
     html_dict['stability'] = fname
 
     if atype == 'Twotime':
-        img_description = plot_twotime_correlation(info, save_dir, num_img, dpi)
+        img_description = plot_twotime_correlation(
+            info, save_dir, num_img, dpi)
     elif atype == 'Multitau':
-        img_description = plot_multitau_correlation(info, save_dir, num_img, dpi)
+        img_description = plot_multitau_correlation(
+            info, save_dir, num_img, dpi)
     else:
         raise NotImplementedError
 
@@ -296,6 +296,7 @@ def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
 
     return html_dict
 
+
 def combine_all_htmls(target_folder='web_data'):
     files = os.listdir(target_folder)
     htmls = [x for x in files if x.endswith('.html')]
@@ -331,7 +332,7 @@ def convert_all_files():
     # all_tt = all_tt_raw
     all_tt.sort()
 
-    func = lambda x: convert_one_twotime(x, prefix=prefix)
+    def func(x): return convert_one_twotime(x, prefix=prefix)
     # parallel
     # p = Pool(4)
     # p.map(convert_one_twotime, all_tt[0:4])
@@ -342,7 +343,6 @@ def convert_all_files():
         func(x)
         print(time.perf_counter() - t0, x)
         break
-
 
 
 def make_twotime_plots(**event):
@@ -366,5 +366,3 @@ if __name__ == '__main__':
     # combine_all_htmls()
     # convert_all_files()
     test_plots()
-
-
