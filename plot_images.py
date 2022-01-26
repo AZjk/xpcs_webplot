@@ -249,21 +249,20 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     return {'correlation': img_list}
 
 
-def convert_hdf_webpage(fname, prefix='./', target_dir='html', 
+def convert_hdf_webpage(fname, target_dir='html', 
                         num_img=4, dpi=120):
-    save_dir_rel = os.path.splitext(fname)[0]
+    save_dir_rel = os.path.splitext(os.path.basename(fname))[0]
     save_dir = os.path.join(target_dir, save_dir_rel)
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
 
     info = {}
-    with h5py.File(os.path.join(prefix, fname), 'r') as f:
+    with h5py.File(fname, 'r') as f:
         atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
 
         for key, real_key in key_map.items():
             if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
-            # info[key] = f[real_key][()]
             info[key] = get(f, key)
 
         if atype == 'Twotime':
@@ -316,38 +315,35 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
     convert_to_html(save_dir, html_dict)
 
 
-def convert_many_files(flist, prefix, num_workers=12, mode='parallel'):
+def convert_many_files(flist, num_workers=12, mode='parallel'):
     flist.sort()
 
     if mode == 'parallel':
-        args = zip(flist, [prefix] * len(flist))
         p = Pool(num_workers)
-        p.starmap(convert_hdf_webpage, args)
+        p.map(convert_hdf_webpage, flist)
     else:
         for f in flist:
-            convert_hdf_webpage(f, prefix)
+            convert_hdf_webpage(f)
 
 
 def test_plots():
     # twotime
-    prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
-    fname = 'E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_hdf_webpage(fname, prefix)
+    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    convert_hdf_webpage(fname)
 
-    prefix = '/local/dev/xpcs_data_raw/cluster_results'
-    fname = 'N077_D100_att02_0001_0001-100000.hdf'
-    convert_hdf_webpage(fname, prefix)
+    fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
+    convert_hdf_webpage(fname)
 
 
 def test_parallel():
     prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
-    flist = os.listdir(prefix)
-    flist = [x for x in flist if x.endswith('Twotime.hdf')]
+    flist = glob2.glob(prefix + '/*Twotime.hdf')
+    flist.sort()
     flist = flist[0:20]
     # print(flist)
     convert_many_files(flist, prefix)
 
 
 if __name__ == '__main__':
-    # test_plots()
-    test_parallel()
+    test_plots()
+    # test_parallel()
