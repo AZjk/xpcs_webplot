@@ -29,7 +29,21 @@ key_map = {
     "stride_frames": "/xpcs/stride_frames",
     "t_begin": "/measurement/instrument/source_begin/datetime",
     # "t_end": "/measurement/instrument/source_end/datetime",
+    # "temperature_a_rbv": "/measurement/sample/temperature_A",
+    # "temperature_a_set": "/measurement/sample/temperature_A_set",
+    # "temperature_b_rbv": "/measurement/sample/temperature_B",
+    # "temperature_b_set": "/measurement/sample/temperature_B_set",
+    "current": "/measurement/instrument/source_begin/current",
 }
+
+
+def get(hdf_handler, key):
+    if key_map[key] not in hdf_handler:
+        return 'None'
+    val = hdf_handler.get(key_map[key])[()]
+    if type(val) in [np.bytes_, bytes]:
+        val = val.decode()
+    return val
 
 
 def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
@@ -181,10 +195,10 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
 
 
 def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
-    html_dict = {}
     g2d = info['g2'].T
     g2e = info['g2_err'].T
     tot_num = g2d.shape[0]
+    img_list = []
 
     for n in range(0, (tot_num + num_img - 1) // num_img):
         st = num_img * n
@@ -198,17 +212,18 @@ def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
 
         plot_multitau_row(info['t_el'][0], g2d[st:ed], g2e[st:ed], roi_mask,
                           save_name, save_dir, label, num_img, dpi)
-        html_dict[f'multitau_{n:04d}'] = os.path.join(
-            os.path.basename(save_dir), save_name)
 
-    return html_dict
+        img_list.append(os.path.join(os.path.basename(save_dir), save_name))
+
+    return {'correlation': img_list}
+
 
 
 def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
-    html_dict = {}
     c2_val = info['c2_val']
     c2_key = info['c2_key']
     tot_num = len(c2_key) 
+    img_list = []
 
     for n in range(0, (tot_num + num_img - 1) // num_img):
         st = num_img * n
@@ -223,10 +238,9 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
         plot_twotime_row(info['delta_t'], c2_val[st:ed], label, roi_mask,
                         save_name, save_dir, num_img=num_img, dpi=dpi)
 
-        html_dict[f'multitau_{n:04d}'] = os.path.join(
-            os.path.basename(save_dir), save_name)
+        img_list.append(os.path.join(os.path.basename(save_dir), save_name))
 
-    return html_dict
+    return {'correlation': img_list}
 
 
 def convert_hdf_webpage(fname, prefix='./', target_dir='html', 
@@ -243,7 +257,8 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
         for key, real_key in key_map.items():
             if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
-            info[key] = f[real_key][()]
+            # info[key] = f[real_key][()]
+            info[key] = get(f, key)
 
         if atype == 'Twotime':
             info['c2_val'] = [] 
@@ -268,7 +283,7 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
     info['dqmap'] = dqmap
     info['mask'] = mask
 
-    html_dict = {'saxs_mask': os.path.join(save_dir_rel, 'saxs_mask.png')}
+    html_dict = {'scattering': os.path.join(save_dir_rel, 'saxs_mask.png')}
 
     img_description = plot_stability(
         info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
@@ -284,7 +299,13 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
         raise NotImplementedError
 
     html_dict.update(img_description)
-    convert_to_html(save_dir, info['t_begin'].decode(), html_dict)
+    setting = {
+        'datetime': info['t_begin'],
+        'current (mA)': round(float(info['current']), 3)
+    }
+    html_dict.update({'setting': setting})
+
+    convert_to_html(save_dir, html_dict)
 
 
 def convert_many_files(flist, prefix, num_workers=12, mode='parallel'):
