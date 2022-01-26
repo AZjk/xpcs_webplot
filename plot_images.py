@@ -174,7 +174,6 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
 
 
 def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
-
     html_dict = {}
     g2d = info['g2'].T
     g2e = info['g2_err'].T
@@ -221,34 +220,6 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     return html_dict
 
 
-
-
-def convert_all_files():
-    # convert('E023_SiO2_111921_270nm_Exp1_IntriDyn_Pos3_XPCS_03_att02_Lq1_001_0001-0500_Twotime.hdf')
-    prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
-    all_tt_raw = glob2.glob(prefix + '/*_Twotime.hdf')
-    all_tt = [os.path.basename(x) for x in all_tt_raw]
-
-    # all_tt_raw = []
-    # with open('filelists_new.txt', 'r') as f:
-    #     for line in f:
-    #         all_tt_raw.append(line[:-1])
-    # all_tt = all_tt_raw
-    all_tt.sort()
-
-    def func(x): return convert_hdf_webpage(x, prefix=prefix)
-    # parallel
-    # p = Pool(4)
-    # p.map(convert_one_twotime, all_tt[0:4])
-
-    # one by one
-    for x in all_tt:
-        t0 = time.perf_counter()
-        func(x)
-        print(time.perf_counter() - t0, x)
-        break
-
-
 def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
     save_dir = os.path.splitext(fname)[0]
     if not os.path.isdir(save_dir):
@@ -264,22 +235,16 @@ def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
             info[key] = f[real_key][()]
 
         if atype == 'Twotime':
-            c2_val = []
-            c2_key = []
-            for n in range(1, 8193):
-                real_key = f"/exchange/C2T_all/g2_{n:05d}"
-                if real_key in f:
-                    c2_half = f[real_key][()]
-                    c2 = c2_half + c2_half.T
-                    c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
-                    # info[real_key] = c2
-                    c2_val.append(c2)
-                    c2_key.append(n)
-                else:
-                    break
-            info['c2_val'] = c2_val
-            info['c2_key'] = c2_key
-            info['tau'] = c2_val[0].shape[0]
+            info['c2_val'] = [] 
+            info['c2_key'] = []
+            all_keys = list(f['/exchange/C2T_all/'])
+            for key in all_keys:
+                c2_half = f['/exchange/C2T_all/' + key][()]
+                c2 = c2_half + c2_half.T
+                c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
+                info['c2_val'].append(c2)
+                info['c2_key'].append(int(key[3:]))
+            info['tau'] = info['c2_val'][0].shape[0]
 
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
@@ -311,6 +276,18 @@ def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
     convert_to_html(save_dir, html_dict)
 
 
+def convert_many_files(flist, prefix, num_workers=12, mode='parallel'):
+    flist.sort()
+
+    if mode == 'parallel':
+        args = zip(flist, [prefix] * len(flist))
+        p = Pool(num_workers)
+        p.starmap(convert_hdf_webpage, args)
+    else:
+        for f in flist:
+            convert_hdf_webpage(f, prefix)
+
+
 def test_plots():
     # twotime
     prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
@@ -322,7 +299,15 @@ def test_plots():
     convert_hdf_webpage(fname, prefix)
 
 
+def test_parallel():
+    prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
+    flist = os.listdir(prefix)
+    flist = [x for x in flist if x.endswith('Twotime.hdf')]
+    flist = flist[0:20]
+    # print(flist)
+    convert_many_files(flist, prefix)
+
+
 if __name__ == '__main__':
-    # combine_all_htmls()
-    # convert_all_files()
     test_plots()
+    # test_parallel()
