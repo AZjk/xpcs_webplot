@@ -71,11 +71,14 @@ def find_min_max(x, pmin=1, pmax=99):
 
 
 def plot_roi_mask(fig, ax, roi_mask, num_img):
+    valid_roi = roi_mask == 1
     roi_mask = roi_mask.astype(np.float32)
     roi_mask[roi_mask < 2] = np.nan
     roi_mask -= 1
-    im = ax.imshow(roi_mask, origin='lower', cmap=plt.cm.gray, vmin=0,
-                   vmax=num_img + 1)
+    # mark the overall valid region with light color;
+    roi_mask[valid_roi] = 0.25
+    im = ax.imshow(roi_mask, origin='lower', cmap=plt.get_cmap('Greys'),
+                   vmin=0, vmax=num_img + 1)
     divider0 = make_axes_locatable(ax)
     cax = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im, cax=cax)
