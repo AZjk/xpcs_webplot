@@ -31,22 +31,31 @@ key_map = {
 }
 
 
-def plot_stability(ql_sta, Iqp, t_el, intt):
-    fig, ax = plt.subplots(1, 2, figsize=(16, 4))
+def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
+
+    figsize = (16, 3.6)
+    fig, ax = plt.subplots(1, 2, figsize=figsize)
+
     for n in range(Iqp.shape[0]):
-        ax[0].loglog(ql_sta[0], Iqp[n], label=f'{n}')
+        ax[0].loglog(ql_sta[0] * 1000, Iqp[n], label=f'{n}')
 
-    ax[0].set_xlabel("$q (\\AA^{-1})$")
-    ax[0].set_ylabel("Intensity (photons/pixel/frame)")
-    ax[0].set_title(f'partial mean')
+    ax[0].set_xlabel("$q (\\AA^{-1}) \\times 10^3$")
+    ax[0].set_ylabel("Intensity (photons/pixel)")
+    ax[0].set_title('Partial mean')
+    ax[0].legend()
 
-    ax[1].plot(t_el, intt, linewidth=0.1)
+    # t_axis = np.arange(intt.shape[0]) * deltat
+    ax[1].plot(intt[0], intt[1], 'b', linewidth=0.2)
     ax[1].set_xlabel("t (s)")
     ax[1].set_ylabel("Intensity (photons/pixel/frame)")
-    plt.imshow()
+    ax[1].set_title('Intensity vs t')
+    plt.tight_layout()
+
+    save_name = os.path.join(save_dir, 'stability.png')
+    plt.savefig(save_name, dpi=dpi)
     plt.close(fig)
 
-    return
+    return save_name
 
 
 def find_min_max(x, pmin=1, pmax=99):
@@ -56,33 +65,49 @@ def find_min_max(x, pmin=1, pmax=99):
     return vmin, vmax
 
 
-def plot_multitau_list(num_img=4):
+def plot_roi_mask(fig, ax, roi_mask, num_img):
+    roi_mask = roi_mask.astype(np.float32)
+    roi_mask[roi_mask < 2] = np.nan
+    roi_mask -= 1
+    im0 = ax.imshow(roi_mask, origin='lower', cmap=plt.cm.gray, vmin=0,
+                    vmax=num_img + 1)
+    fig.colorbar(im0, ax=ax)
+    ax.set_title('q-selection')
+    return
+
+
+def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
+                      num_img=4, dpi=240):
         
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
+    
+    plot_roi_mask(fig, ax[0], roi_mask, num_img)
 
-    # for ii in range(num_rows):
-    #     for jj in range(num_cols):
-    #     dim = ii*num_cols+jj  
-    #     ax = axs[ii,jj]
-    #     ax.set_xscale('log')
-    #     ax.set_ylim(1, 2.15)
-    #     ax.set_xlabel('t (s)')
-    #     ax.set_ylabel('g2')
-    #     ax.plot(t_el, g2[:,dim], 'bo')
-    #     ax.text(0.4, 0.2, ('Q = %5.4f $\AA^{-1}$' %ql_dyn[dim]), horizontalalignment='center',
-    #             verticalalignment='bottom', transform=ax.transAxes)
+    for n in range(g2.shape[0]):
+        bx = ax[n + 1]
+        bx.semilogx(t_el, g2[n], 'bo', mfc='none', ms=2.0, alpha=0.8)
+        bx.semilogx(t_el, g2[n], 'r', alpha=0.5, lw=0.5)
+        # bx.errorbar(t_el, g2[n], yerr=g2_err[n], fmt='o',
+        #             ecolor='lightgreen',
+        #             color='blue', ms=0.001, mew=1, capsize=3, alpha=0.8)
+        # bx.set_xscale('log')
+        bx.set_xlabel('t (s)')
+        bx.set_ylabel('g2')
+        bx.set_title(label[n])
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
+    plt.close(fig)
 
 
-def plot_twotime_list(deltat, x, label, roi_mask, save_name, save_dir,
+def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
                       num_img=4, dpi=240):
     
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
-    im0 = ax[0].imshow(roi_mask, origin='lower', cmap=plt.cm.gray)
-    fig.colorbar(im0, ax=ax[0])
-    ax[0].set_title('q-selection')
+    plot_roi_mask(fig, ax[0], roi_mask, num_img)
 
     extent = [0, float(x[0].shape[1] * deltat),
               0, float(x[0].shape[0] * deltat)]
@@ -101,7 +126,7 @@ def plot_twotime_list(deltat, x, label, roi_mask, save_name, save_dir,
 
 
 def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
-    figsize = (16, 3.2)
+    figsize = (16, 3.6)
     fig, ax = plt.subplots(1, 2, figsize=figsize)
 
     nonzero = np.nonzero(mask)
@@ -119,6 +144,7 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     if saxs.shape[0] > saxs.shape[1]:
         saxs = saxs.T
         mask = mask.T
+        dqmap = dqmap.T
 
     vmin, vmax = find_min_max(saxs, 1, 99.9)
     im0 = ax[0].imshow(saxs, origin='lower', cmap=plt.cm.jet,
@@ -165,14 +191,14 @@ def convert_one_twotime(fname,
 
     info = {}
     with h5py.File(os.path.join(prefix, fname), 'r') as f:
-        rtype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
+        atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
 
         for key, real_key in key_map.items():
-            if rtype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
+            if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
             info[key] = f[real_key][()]
 
-        if rtype == 'Twotime':
+        if atype == 'Twotime':
             for n in range(1, 8193):
                 real_key = f"/exchange/C2T_all/g2_{n:05d}"
                 if real_key in f:
@@ -184,28 +210,51 @@ def convert_one_twotime(fname,
                     break
             info['tau'] = c2.shape[0]
     
-    deltat = info['t0'] * info['avg_frames'] * info['stride_frames']
-    info['t_el'] = deltat * info['tau']
+    delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
+    info['delta_t'] = delta_t
+    info['t_el'] = delta_t * info['tau']
 
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
                                        info['dqmap'], save_dir)
+    # update the dynamic qmap with a cropped one
+    info['dqmap'] = dqmap
+    info['mask'] = mask
 
     html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
 
+    fname = plot_stability(info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
+    html_dict['stability'] = fname
+
+    if atype == 'Twotime':
+        img_description = plot_twotime_correlation(info, save_dir, num_img, dpi)
+    elif atype == 'Multitau':
+        img_description = plot_multitau_correlation(info, save_dir, num_img, dpi)
+    else:
+        raise NotImplementedError
+
+    html_dict.update(img_description)
+    convert_to_html(save_dir, html_dict)
+
+
+def plot_twotime_correlation(info, save_dir, num_img=4, dpi=120):
+
+    img_idx = 1
     xlist = []
     label = []
-    roi_mask = np.copy(mask).astype(np.int64)
+    roi_mask = np.copy(info['mask']).astype(np.int64)
     last_key = list(info.items())[-1][0]
 
+    html_dict = {}
     for key, val in info.items():
         if len(xlist) == num_img or key == last_key:
-            save_name = label[0] + '-' + label[-1] + '.png'
-            plot_twotime_list(deltat, xlist, label, roi_mask, save_name,
-                              save_dir, num_img=num_img, dpi=dpi)
+            save_name = f'correlation_{img_idx:04d}.png'
+            img_idx += 1
+            plot_twotime_row(info['delta_t'], xlist, label, roi_mask, save_name,
+                             save_dir, num_img=num_img, dpi=dpi)
             xlist = []
             label = []
-            roi_mask = np.copy(mask).astype(np.int64)
+            roi_mask = np.copy(info['mask']).astype(np.int64)
             html_dict[key] = os.path.join(save_dir, save_name)
 
         if not "/exchange/C2T_all/g2_" in key:
@@ -214,10 +263,34 @@ def convert_one_twotime(fname,
             qidx = int(key[-5:])
             xlist.append(val)
             label.append(os.path.basename(key))
-            roi_mask += (dqmap == qidx) * (len(xlist) + 1)
+            roi_mask += (info['dqmap'] == qidx) * len(xlist)
 
-    convert_to_html(save_dir, html_dict)
+    return html_dict
 
+
+def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
+
+    html_dict = {}
+    g2d = info['g2'].T
+    g2e = info['g2_err'].T
+    tot_num = g2d.shape[0]
+
+    for n in range(0, (tot_num + num_img - 1) // num_img):
+        st = num_img * n
+        ed = min(tot_num, num_img * (n + 1))
+        save_name = f'correlation_{n:04d}.png'
+        label = []
+        roi_mask = np.copy(info['mask']).astype(np.int64)
+        print(np.min(roi_mask))
+        for idx in range(st, ed):
+            label.append('$q=%.4f\\AA^{-1}$' % info['ql_dyn'][0, idx])
+            roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
+
+        plot_multitau_row(info['t_el'][0], g2d[st:ed], g2e[st:ed], roi_mask,
+                          save_name, save_dir, label, num_img=4, dpi=240)
+        html_dict[f'multitau_{n:04d}'] = os.path.join(save_dir, save_name)
+
+    return html_dict
 
 def combine_all_htmls(target_folder='web_data'):
     files = os.listdir(target_folder)
@@ -278,7 +351,7 @@ def test_plots():
     # twotime
     prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
     fname = 'E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_one_twotime(fname, prefix)
+    # convert_one_twotime(fname, prefix)
 
     prefix = '/local/dev/xpcs_data_raw/cluster_results'
     fname = 'N077_D100_att02_0001_0001-100000.hdf'
