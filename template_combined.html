@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    body {
+      margin: 0px;
+      margin-top: 40px;
+      padding: 0px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 8px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2
+    }
+
+    th {
+      background-color: #1bc0dd;
+      color: white;
+      font-size: 18px
+    }
+  </style>
+
+  <head>
+
+  <body>
+    <div, id='metadata' class='styled-table'>
+      <table>
+        <tr>
+          <th> Filename </th>
+          <th> Analysis Type </th>
+          <th> Date </th>
+        </tr>
+        {% for line in mydata %}
+        <tr>
+          <td> <a href={{line[1]}} > {{line[0]}} </a> </td>
+          <td> {{line[2]}} </td>
+          <td> {{line[3]}} </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+  </body>
+
+</html>
