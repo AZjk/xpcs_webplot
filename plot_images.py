@@ -1,5 +1,4 @@
 import numpy as np
-import skimage.io as skio
 import h5py
 import os
 import matplotlib.pyplot as plt
@@ -28,8 +27,8 @@ key_map = {
     "Int_t": "/exchange/frameSum",
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
-    "t_begin": "/measurement/instrument/source_begin/datetime",
-    "t_end": "/measurement/instrument/source_end/datetime",
+    # "t_begin": "/measurement/instrument/source_begin/datetime",
+    # "t_end": "/measurement/instrument/source_end/datetime",
 }
 
 
@@ -186,62 +185,6 @@ def convert_to_html(title, data_dict):
         f.write(subs)
 
 
-def convert_one_twotime(fname, prefix='./', num_img=4, dpi=120):
-    save_dir = os.path.splitext(fname)[0]
-    if not os.path.isdir(save_dir):
-        os.mkdir(save_dir)
-
-    info = {}
-    with h5py.File(os.path.join(prefix, fname), 'r') as f:
-        atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
-
-        for key, real_key in key_map.items():
-            if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
-                continue
-            info[key] = f[real_key][()]
-
-        if atype == 'Twotime':
-            for n in range(1, 8193):
-                real_key = f"/exchange/C2T_all/g2_{n:05d}"
-                if real_key in f:
-                    c2_half = f[real_key][()]
-                    c2 = c2_half + c2_half.T
-                    c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
-                    info[real_key] = c2
-                else:
-                    break
-            info['tau'] = c2.shape[0]
-
-    delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
-    info['delta_t'] = delta_t
-    info['t_el'] = delta_t * info['tau']
-
-    # plot saxs and sqmap
-    mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
-                                      info['dqmap'], save_dir)
-    # update the dynamic qmap with a cropped one
-    info['dqmap'] = dqmap
-    info['mask'] = mask
-
-    html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
-
-    fname = plot_stability(
-        info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
-    html_dict['stability'] = fname
-
-    if atype == 'Twotime':
-        img_description = plot_twotime_correlation(
-            info, save_dir, num_img, dpi)
-    elif atype == 'Multitau':
-        img_description = plot_multitau_correlation(
-            info, save_dir, num_img, dpi)
-    else:
-        raise NotImplementedError
-
-    html_dict.update(img_description)
-    convert_to_html(save_dir, html_dict)
-
-
 def plot_twotime_correlation(info, save_dir, num_img=4, dpi=120):
 
     img_idx = 1
@@ -332,7 +275,7 @@ def convert_all_files():
     # all_tt = all_tt_raw
     all_tt.sort()
 
-    def func(x): return convert_one_twotime(x, prefix=prefix)
+    def func(x): return convert_hdf_webpage(x, prefix=prefix)
     # parallel
     # p = Pool(4)
     # p.map(convert_one_twotime, all_tt[0:4])
@@ -345,21 +288,71 @@ def convert_all_files():
         break
 
 
-def make_twotime_plots(**event):
-    prefix = event['proc_dir']
-    fname = event['hdf_file']
-    convert_one_twotime(fname, prefix)
+def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
+    save_dir = os.path.splitext(fname)[0]
+    if not os.path.isdir(save_dir):
+        os.mkdir(save_dir)
+
+    info = {}
+    with h5py.File(os.path.join(prefix, fname), 'r') as f:
+        atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
+
+        for key, real_key in key_map.items():
+            if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
+                continue
+            info[key] = f[real_key][()]
+
+        if atype == 'Twotime':
+            for n in range(1, 8193):
+                real_key = f"/exchange/C2T_all/g2_{n:05d}"
+                if real_key in f:
+                    c2_half = f[real_key][()]
+                    c2 = c2_half + c2_half.T
+                    c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
+                    info[real_key] = c2
+                else:
+                    break
+            info['tau'] = c2.shape[0]
+
+    delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
+    info['delta_t'] = delta_t
+    info['t_el'] = delta_t * info['tau']
+
+    # plot saxs and sqmap
+    mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
+                                      info['dqmap'], save_dir)
+    # update the dynamic qmap with a cropped one
+    info['dqmap'] = dqmap
+    info['mask'] = mask
+
+    html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
+
+    fname = plot_stability(
+        info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
+    html_dict['stability'] = fname
+
+    if atype == 'Twotime':
+        img_description = plot_twotime_correlation(
+            info, save_dir, num_img, dpi)
+    elif atype == 'Multitau':
+        img_description = plot_multitau_correlation(
+            info, save_dir, num_img, dpi)
+    else:
+        raise NotImplementedError
+
+    html_dict.update(img_description)
+    convert_to_html(save_dir, html_dict)
 
 
 def test_plots():
     # twotime
     prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
     fname = 'E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_one_twotime(fname, prefix)
+    convert_hdf_webpage(fname, prefix)
 
     prefix = '/local/dev/xpcs_data_raw/cluster_results'
     fname = 'N077_D100_att02_0001_0001-100000.hdf'
-    convert_one_twotime(fname, prefix)
+    convert_hdf_webpage(fname, prefix)
 
 
 if __name__ == '__main__':
