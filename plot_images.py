@@ -253,7 +253,7 @@ def plot_twotime_correlation(info, save_dir, num_img=4, dpi=120):
     html_dict = {}
     for key, val in info.items():
         if len(xlist) == num_img or key == last_key:
-            save_name = f'correlation_{img_idx:04d}.png'
+            save_name = f'c2_{img_idx:04d}.png'
             img_idx += 1
             plot_twotime_row(info['delta_t'], xlist, label, roi_mask, save_name,
                              save_dir, num_img=num_img, dpi=dpi)
@@ -283,7 +283,7 @@ def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
     for n in range(0, (tot_num + num_img - 1) // num_img):
         st = num_img * n
         ed = min(tot_num, num_img * (n + 1))
-        save_name = f'correlation_{n:04d}.png'
+        save_name = f'g2_{n:04d}.png'
         label = []
         roi_mask = np.copy(info['mask']).astype(np.int64)
         for idx in range(st, ed):
