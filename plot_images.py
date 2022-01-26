@@ -7,6 +7,7 @@ import glob2
 import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from html_utlits import convert_to_html
+import shutil
 
 
 key_map = {
@@ -220,7 +221,8 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     return html_dict
 
 
-def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
+def convert_hdf_webpage(fname, prefix='./', target_dir='html', 
+                        num_img=4, dpi=120):
     save_dir = os.path.splitext(fname)[0]
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
@@ -274,6 +276,10 @@ def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
 
     html_dict.update(img_description)
     convert_to_html(save_dir, html_dict)
+
+    if target_dir is not None and os.path.isdir(target_dir):
+        shutil.move(save_dir, target_dir)
+        shutil.move(save_dir + '.html', target_dir)
 
 
 def convert_many_files(flist, prefix, num_workers=12, mode='parallel'):
