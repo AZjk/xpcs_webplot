@@ -69,9 +69,11 @@ def plot_roi_mask(fig, ax, roi_mask, num_img):
     roi_mask = roi_mask.astype(np.float32)
     roi_mask[roi_mask < 2] = np.nan
     roi_mask -= 1
-    im0 = ax.imshow(roi_mask, origin='lower', cmap=plt.cm.gray, vmin=0,
+    im = ax.imshow(roi_mask, origin='lower', cmap=plt.cm.gray, vmin=0,
                     vmax=num_img + 1)
-    fig.colorbar(im0, ax=ax)
+    divider0 = make_axes_locatable(ax)
+    cax = divider0.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(im, cax=cax)
     ax.set_title('q-selection')
     return
 
@@ -281,7 +283,6 @@ def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
         save_name = f'correlation_{n:04d}.png'
         label = []
         roi_mask = np.copy(info['mask']).astype(np.int64)
-        print(np.min(roi_mask))
         for idx in range(st, ed):
             label.append('$q=%.4f\\AA^{-1}$' % info['ql_dyn'][0, idx])
             roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
