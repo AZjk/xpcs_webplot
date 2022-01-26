@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool
 import glob2
 import time
+import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from html_utlits import convert_to_html
 
@@ -28,11 +29,11 @@ key_map = {
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
     "t_begin": "/measurement/instrument/source_begin/datetime",
-    # "t_end": "/measurement/instrument/source_end/datetime",
-    # "temperature_a_rbv": "/measurement/sample/temperature_A",
-    # "temperature_a_set": "/measurement/sample/temperature_A_set",
-    # "temperature_b_rbv": "/measurement/sample/temperature_B",
-    # "temperature_b_set": "/measurement/sample/temperature_B_set",
+    "t_end": "/measurement/instrument/source_end/datetime",
+    "temperature_a_rbv": "/measurement/sample/temperature_A",
+    "temperature_a_set": "/measurement/sample/temperature_A_set",
+    "temperature_b_rbv": "/measurement/sample/temperature_B",
+    "temperature_b_set": "/measurement/sample/temperature_B_set",
     "current": "/measurement/instrument/source_begin/current",
 }
 
@@ -43,6 +44,11 @@ def get(hdf_handler, key):
     val = hdf_handler.get(key_map[key])[()]
     if type(val) in [np.bytes_, bytes]:
         val = val.decode()
+    if isinstance(val, np.ndarray):
+        if val.size == 1:
+            val = float(val)
+            if abs(val) > 1e-2:
+                val = round(val, 4)
     return val
 
 
@@ -271,7 +277,6 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
                 info['c2_val'].append(c2)
                 info['c2_key'].append(int(key[3:]))
             info['tau'] = info['c2_val'][0].shape[0]
-
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
     info['t_el'] = delta_t * info['tau']
@@ -299,12 +304,14 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
         raise NotImplementedError
 
     html_dict.update(img_description)
-    setting = {
-        'datetime': info['t_begin'],
-        'current (mA)': round(float(info['current']), 3)
-    }
-    html_dict.update({'setting': setting})
+    metadata = {}
+    for key in list(key_map.keys())[-7:]:
+        metadata[key] = info[key]
 
+    with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
+        json.dump(metadata, f, indent=4)
+
+    html_dict.update({'metadata': metadata})
     convert_to_html(save_dir, html_dict)
 
 
