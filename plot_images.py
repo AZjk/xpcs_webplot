@@ -307,6 +307,7 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
     metadata = {}
     for key in list(key_map.keys())[-7:]:
         metadata[key] = info[key]
+    metadata['analysis_type'] = atype
 
     with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
         json.dump(metadata, f, indent=4)
@@ -348,5 +349,5 @@ def test_parallel():
 
 
 if __name__ == '__main__':
-    test_plots()
-    # test_parallel()
+    # test_plots()
+    test_parallel()
