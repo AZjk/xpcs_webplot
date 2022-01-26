@@ -78,7 +78,6 @@ def plot_twotime_list(deltat, x, label, roi_mask, save_name, save_dir,
                       num_img=4, dpi=240):
     
     figsize = (16, 12 / (num_img + 1))
-
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
     im0 = ax[0].imshow(roi_mask, origin='lower', cmap=plt.cm.gray)
@@ -101,7 +100,10 @@ def plot_twotime_list(deltat, x, label, roi_mask, save_name, save_dir,
     plt.close(fig)
 
 
-def crop_mask_saxs(mask, saxs, dqmap, save_dir):
+def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
+    figsize = (16, 3.2)
+    fig, ax = plt.subplots(1, 2, figsize=figsize)
+
     nonzero = np.nonzero(mask)
     sl_v = slice(np.min(nonzero[0]), np.max(nonzero[0]) + 1)
     sl_h = slice(np.min(nonzero[1]), np.max(nonzero[1]) + 1)
@@ -113,19 +115,31 @@ def crop_mask_saxs(mask, saxs, dqmap, save_dir):
     fig, ax = plt.subplots(1, 2, figsize=(8, 2.8))
     saxs_min = np.min(saxs[saxs > 0])
     saxs[saxs < saxs_min] = saxs_min
-    saxs2 = np.log10(saxs)
+    saxs = np.log10(saxs)
 
-    im0 = ax[0].imshow(saxs2, origin='lower', cmap=plt.cm.jet,
-                       interpolation=None)
-    fig.colorbar(im0, ax=ax[0])
+    if saxs.shape[0] > saxs.shape[1]:
+        saxs = saxs.T
+        mask = mask.T
+
+    vmin, vmax = find_min_max(saxs, 1, 99.9)
+    im0 = ax[0].imshow(saxs, origin='lower', cmap=plt.cm.jet,
+                       interpolation=None, vmin=vmin, vmax=vmax)
+    ax[0].set_title('scattering pattern')
+    divider0 = make_axes_locatable(ax[0])
+    cax0 = divider0.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(im0, cax=cax0)
 
     im1 = ax[1].imshow(mask, origin='lower', cmap=plt.cm.jet)
-    fig.colorbar(im1, ax=ax[1])
+    ax[1].set_title('dynamic qmap')
+    divider1 = make_axes_locatable(ax[1])
+    cax1 = divider1.append_axes("right", size="5%", pad=0.05)
+    fig.colorbar(im1, cax=cax1)
 
-    plt.savefig(os.path.join(save_dir, 'saxs_mask.png'), dpi=300)
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'saxs_mask.png'), dpi=dpi)
     plt.close(fig)
 
-    return mask, saxs, dqmap
+    return mask, dqmap
 
 
 def convert_to_html(title, data_dict):
@@ -175,7 +189,7 @@ def convert_one_twotime(fname,
     info['t_el'] = deltat * info['tau']
 
     # plot saxs and sqmap
-    mask, saxs, dqmap = crop_mask_saxs(info['mask'], info['saxs_2d'],
+    mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
                                        info['dqmap'], save_dir)
 
     html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
