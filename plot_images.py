@@ -2,11 +2,11 @@ import numpy as np
 import h5py
 import os
 import matplotlib.pyplot as plt
-import jinja2
 from multiprocessing import Pool
 import glob2
 import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from html_utlits import convert_to_html
 
 
 key_map = {
@@ -107,7 +107,7 @@ def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
 def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
                      num_img=4, dpi=240):
 
-    figsize = (16, 12 / (num_img + 1))
+    figsize = (16, 12 / (num_img))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
     plot_roi_mask(fig, ax[0], roi_mask, num_img)
@@ -173,50 +173,7 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     return mask, dqmap
 
 
-def convert_to_html(title, data_dict):
-    outputfile = title + '.html'
-
-    subs = jinja2.Environment(
-        loader=jinja2.FileSystemLoader('./')
-    ).get_template('template.html').render(title=title, mydata=data_dict)
-
-    # lets write the substitution to a file
-    with open(outputfile, 'w') as f:
-        f.write(subs)
-
-
-def plot_twotime_correlation(info, save_dir, num_img=4, dpi=120):
-
-    img_idx = 1
-    xlist = []
-    label = []
-    roi_mask = np.copy(info['mask']).astype(np.int64)
-    last_key = list(info.items())[-1][0]
-
-    html_dict = {}
-    for key, val in info.items():
-        if len(xlist) == num_img or key == last_key:
-            save_name = f'c2_{img_idx:04d}.png'
-            img_idx += 1
-            plot_twotime_row(info['delta_t'], xlist, label, roi_mask, save_name,
-                             save_dir, num_img=num_img, dpi=dpi)
-            xlist = []
-            label = []
-            roi_mask = np.copy(info['mask']).astype(np.int64)
-            html_dict[key] = os.path.join(save_dir, save_name)
-
-        if not "/exchange/C2T_all/g2_" in key:
-            continue
-        else:
-            qidx = int(key[-5:])
-            xlist.append(val)
-            label.append(os.path.basename(key))
-            roi_mask += (info['dqmap'] == qidx) * len(xlist)
-
-    return html_dict
-
-
-def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
+def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
 
     html_dict = {}
     g2d = info['g2'].T
@@ -234,32 +191,36 @@ def plot_multitau_correlation(info, save_dir, num_img=4, dpi=120):
             roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
 
         plot_multitau_row(info['t_el'][0], g2d[st:ed], g2e[st:ed], roi_mask,
-                          save_name, save_dir, label, num_img=4, dpi=240)
+                          save_name, save_dir, label, num_img, dpi)
         html_dict[f'multitau_{n:04d}'] = os.path.join(save_dir, save_name)
 
     return html_dict
 
 
-def combine_all_htmls(target_folder='web_data'):
-    files = os.listdir(target_folder)
-    htmls = [x for x in files if x.endswith('.html')]
-    htmls.sort()
-    htmls_dict = {}
+def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
+    html_dict = {}
+    c2_val = info['c2_val']
+    c2_key = info['c2_key']
+    tot_num = len(c2_key) 
 
-    for x in htmls:
-        print(x, target_folder)
-        htmls_dict[os.path.splitext(x)[0]] = os.path.join(target_folder, x)
+    for n in range(0, (tot_num + num_img - 1) // num_img):
+        st = num_img * n
+        ed = min(tot_num, num_img * (n + 1))
+        save_name = f'c2_{n:04d}.png'
+        label = []
+        roi_mask = np.copy(info['mask']).astype(np.int64)
+        for idx in range(st, ed):
+            label.append(f'c2_{c2_key[idx]:04d}')
+            roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
 
-    title = 'cluster_results'
-    outputfile = title + '.html'
+        plot_twotime_row(info['delta_t'], c2_val[st:ed], label, roi_mask,
+                        save_name, save_dir, num_img=num_img, dpi=dpi)
 
-    subs = jinja2.Environment(
-        loader=jinja2.FileSystemLoader('./')
-    ).get_template('template2.html').render(
-        title=title, mydata=htmls_dict)
-    # lets write the substitution to a file
-    with open(outputfile, 'w') as f:
-        f.write(subs)
+        html_dict[f'multitau_{n:04d}'] = os.path.join(save_dir, save_name)
+
+    return html_dict
+
+
 
 
 def convert_all_files():
@@ -303,16 +264,22 @@ def convert_hdf_webpage(fname, prefix='./', num_img=4, dpi=120):
             info[key] = f[real_key][()]
 
         if atype == 'Twotime':
+            c2_val = []
+            c2_key = []
             for n in range(1, 8193):
                 real_key = f"/exchange/C2T_all/g2_{n:05d}"
                 if real_key in f:
                     c2_half = f[real_key][()]
                     c2 = c2_half + c2_half.T
                     c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
-                    info[real_key] = c2
+                    # info[real_key] = c2
+                    c2_val.append(c2)
+                    c2_key.append(n)
                 else:
                     break
-            info['tau'] = c2.shape[0]
+            info['c2_val'] = c2_val
+            info['c2_key'] = c2_key
+            info['tau'] = c2_val[0].shape[0]
 
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
