@@ -7,7 +7,6 @@ import glob2
 import time
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from html_utlits import convert_to_html
-import shutil
 
 
 key_map = {
@@ -57,7 +56,11 @@ def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
     plt.savefig(save_name, dpi=dpi)
     plt.close(fig)
 
-    return save_name
+    img_description = {
+        'stability': os.path.join(os.path.basename(save_dir), 'stability.png')
+    }
+
+    return img_description
 
 
 def find_min_max(x, pmin=1, pmax=99):
@@ -192,7 +195,8 @@ def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
 
         plot_multitau_row(info['t_el'][0], g2d[st:ed], g2e[st:ed], roi_mask,
                           save_name, save_dir, label, num_img, dpi)
-        html_dict[f'multitau_{n:04d}'] = os.path.join(save_dir, save_name)
+        html_dict[f'multitau_{n:04d}'] = os.path.join(
+            os.path.basename(save_dir), save_name)
 
     return html_dict
 
@@ -216,14 +220,16 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
         plot_twotime_row(info['delta_t'], c2_val[st:ed], label, roi_mask,
                         save_name, save_dir, num_img=num_img, dpi=dpi)
 
-        html_dict[f'multitau_{n:04d}'] = os.path.join(save_dir, save_name)
+        html_dict[f'multitau_{n:04d}'] = os.path.join(
+            os.path.basename(save_dir), save_name)
 
     return html_dict
 
 
 def convert_hdf_webpage(fname, prefix='./', target_dir='html', 
                         num_img=4, dpi=120):
-    save_dir = os.path.splitext(fname)[0]
+    save_dir_rel = os.path.splitext(fname)[0]
+    save_dir = os.path.join(target_dir, save_dir_rel)
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
 
@@ -259,11 +265,11 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
     info['dqmap'] = dqmap
     info['mask'] = mask
 
-    html_dict = {'saxs_mask': os.path.join(save_dir, 'saxs_mask.png')}
+    html_dict = {'saxs_mask': os.path.join(save_dir_rel, 'saxs_mask.png')}
 
-    fname = plot_stability(
+    img_description = plot_stability(
         info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
-    html_dict['stability'] = fname
+    html_dict.update(img_description)
 
     if atype == 'Twotime':
         img_description = plot_twotime_correlation(
@@ -276,10 +282,6 @@ def convert_hdf_webpage(fname, prefix='./', target_dir='html',
 
     html_dict.update(img_description)
     convert_to_html(save_dir, info['t_begin'].decode(), html_dict)
-
-    if target_dir is not None and os.path.isdir(target_dir):
-        shutil.move(save_dir, target_dir)
-        shutil.move(save_dir + '.html', target_dir)
 
 
 def convert_many_files(flist, prefix, num_workers=12, mode='parallel'):

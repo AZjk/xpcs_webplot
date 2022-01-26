@@ -2,8 +2,9 @@ import jinja2
 import os
 
 
-def convert_to_html(title, timestamp, data_dict):
-    outputfile = title + '.html'
+def convert_to_html(save_dir, timestamp, data_dict):
+    outputfile = save_dir + '.html'
+    title = os.path.basename(save_dir)
 
     subs = jinja2.Environment(
         loader=jinja2.FileSystemLoader('./')
