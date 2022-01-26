@@ -119,7 +119,9 @@ def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
                                vmax=vmax, extent=extent, interpolation=None)
         ax[n + 1].set_xlabel('t1 (s)')
         ax[n + 1].set_ylabel('t2 (s)')
-        fig.colorbar(imx, ax=ax[n + 1])
+        divider0 = make_axes_locatable(ax[n + 1])
+        cax = divider0.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(imx, cax=cax)
         ax[n + 1].set_title(label[n])
 
     plt.tight_layout()
@@ -156,7 +158,8 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     cax0 = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im0, cax=cax0)
 
-    im1 = ax[1].imshow(mask, origin='lower', cmap=plt.cm.jet)
+    im1 = ax[1].imshow(dqmap, origin='lower', cmap=plt.cm.jet, 
+                       interpolation=None)
     ax[1].set_title('dynamic qmap')
     divider1 = make_axes_locatable(ax[1])
     cax1 = divider1.append_axes("right", size="5%", pad=0.05)
@@ -352,7 +355,7 @@ def test_plots():
     # twotime
     prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
     fname = 'E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    # convert_one_twotime(fname, prefix)
+    convert_one_twotime(fname, prefix)
 
     prefix = '/local/dev/xpcs_data_raw/cluster_results'
     fname = 'N077_D100_att02_0001_0001-100000.hdf'
