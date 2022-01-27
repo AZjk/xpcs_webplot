@@ -11,7 +11,7 @@ from html_utlits import convert_to_html
 import logging
 import traceback
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d %(name)-12s %(levelname)s %(message)s',
+                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
                     datefmt='%m-%d %H:%M:%S')
 
 
@@ -95,7 +95,7 @@ def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
 
     # t_axis = np.arange(intt.shape[0]) * deltat
     ax[1].plot(intt[0], intt[1], 'b', linewidth=0.2)
-    ax[1].set_xlabel("t (s)")
+    ax[1].set_xlabel("frame index")
     ax[1].set_ylabel("Intensity (photons/pixel/frame)")
     ax[1].set_title('Intensity vs t')
     plt.tight_layout()
@@ -283,7 +283,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     basename = os.path.basename(fname)
     save_dir_rel = os.path.splitext(basename)[0]
     if not overwrite and check_exist(basename, target_dir):
-        logging.info(f'file has been processed [{basename}].')
+        logging.info(f'job skip to avoid overwrite: [{basename}].')
         return
 
     save_dir = os.path.join(target_dir, save_dir_rel)
@@ -293,7 +293,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     info = {}
     atype = get_anaylsis_type(fname)
     if atype not in ['Twotime', 'Multitau']:
-        logging.info(f'cannot read file [{basename}].')
+        logging.info(f'file type error: [{basename}].')
         return
 
     with h5py.File(fname, 'r') as f:
@@ -316,7 +316,6 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
     info['t_el'] = delta_t * info['tau']
-    info['Int_t'][0] *= delta_t
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
                                       info['dqmap'], save_dir)
@@ -351,7 +350,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     html_dict.update({'metadata': metadata})
     convert_to_html(save_dir, html_dict)
     tot_time = round(time.perf_counter() - t_start, 3)
-    logging.info(f'finished in [{tot_time}]s: [{basename}]')
+    logging.info(f'job finished in [{tot_time}]s: [{basename}]')
 
 
 def convert_hdf_webpage_wrapper(*args, **kwargs):
@@ -359,7 +358,7 @@ def convert_hdf_webpage_wrapper(*args, **kwargs):
         x = convert_hdf_webpage(*args, **kwargs)
     except Exception as ex:
         basename = os.path.basename(args[0])
-        logging.info(f'failed job: [{basename}]')
+        logging.info(f'job failed: [{basename}]')
         traceback.print_exc()
     else:
         return x
