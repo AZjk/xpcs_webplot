@@ -8,6 +8,10 @@ import time
 import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from html_utlits import convert_to_html
+import logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s.%(msecs)03d %(name)-12s %(levelname)s %(message)s',
+                    datefmt='%m-%d %H:%M:%S')
 
 
 key_map = {
@@ -50,6 +54,23 @@ def get(hdf_handler, key):
             if abs(val) > 1e-2:
                 val = round(val, 4)
     return val
+
+
+def get_anaylsis_type(hdf_fname):
+    try:
+        with h5py.File(hdf_fname, 'r') as f:
+            atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
+    except Exception:
+        return None
+    return atype
+
+
+def check_exist(basename, target_dir):
+    fname_no_ext = os.path.splitext(basename)[0]
+    if os.path.isfile(os.path.join(target_dir, fname_no_ext + '.html')):
+        return True
+    else:
+        return False
 
 
 def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
@@ -249,17 +270,26 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     return {'correlation': img_list}
 
 
-def convert_hdf_webpage(fname, target_dir='html', 
-                        num_img=4, dpi=120):
-    save_dir_rel = os.path.splitext(os.path.basename(fname))[0]
+def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
+                        overwrite=False):
+    t_start = time.perf_counter()
+    basename = os.path.basename(fname)
+    save_dir_rel = os.path.splitext(basename)[0]
+    if not overwrite and check_exist(basename, target_dir):
+        logging.info(f'file has been processed [{basename}].')
+        return
+
     save_dir = os.path.join(target_dir, save_dir_rel)
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
 
     info = {}
-    with h5py.File(fname, 'r') as f:
-        atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
+    atype = get_anaylsis_type(fname)
+    if atype not in ['Twotime', 'Multitau']:
+        logging.info(f'cannot read file [{basename}].')
+        return
 
+    with h5py.File(fname, 'r') as f:
         for key, real_key in key_map.items():
             if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
@@ -313,14 +343,19 @@ def convert_hdf_webpage(fname, target_dir='html',
 
     html_dict.update({'metadata': metadata})
     convert_to_html(save_dir, html_dict)
+    tot_time = round(time.perf_counter() - t_start, 3)
+    logging.info(f'finished in [{tot_time}]s: [{basename}]')
 
 
-def convert_many_files(flist, num_workers=12, mode='parallel'):
+def convert_many_files(flist, num_workers=12, mode='parallel',
+                       target_dir='html'):
     flist.sort()
 
     if mode == 'parallel':
+        args = list(zip(flist, [target_dir] * len(flist)))
         p = Pool(num_workers)
-        p.map(convert_hdf_webpage, flist)
+        # p.map(convert_hdf_webpage, flist)
+        p.starmap(convert_hdf_webpage, args)
     else:
         for f in flist:
             convert_hdf_webpage(f)
@@ -336,14 +371,15 @@ def test_plots():
 
 
 def test_parallel():
-    prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
+    # prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
+    prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
     flist = glob2.glob(prefix + '/*Twotime.hdf')
     flist.sort()
-    flist = flist[0:20]
     # print(flist)
-    convert_many_files(flist, prefix)
+    # convert_many_files(flist, mode='parallel')
+    convert_many_files(flist, mode='parallel')
 
 
 if __name__ == '__main__':
-    test_plots()
-    # test_parallel()
+    # test_plots()
+    test_parallel()
