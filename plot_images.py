@@ -162,22 +162,26 @@ def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
     plot_roi_mask(fig, ax[0], roi_mask, num_img, dnophi)
 
     cmap = plt.cm.get_cmap('hsv')
-    rgba = cmap(0.5)
-
     for n in range(g2.shape[0] // dnophi):
         bx = ax[n + 1]
+        sl = slice(n * dnophi, (n + 1) * dnophi)
+        g2_mean = np.mean(g2[sl], axis=1)
+        g2_mean_all = np.mean(g2[sl])
         for p in range(dnophi):
             if dnophi == 1:
                 color1 = 'b'
                 color2 = 'r'
+                offset = 0
             else:
                 color1 = cmap(p / 1.0 / dnophi)
                 color2 = color1 
+                offset = g2_mean_all - g2_mean[p]
 
             idx = n * dnophi + p
-            bx.semilogx(t_el, g2[idx], 'o', color=color1, mfc='none', ms=2.0, 
+            g2_temp = g2[idx] + offset
+            bx.semilogx(t_el, g2_temp, 'o', color=color1, mfc='none', ms=2.0, 
                         alpha=0.8)
-            bx.semilogx(t_el, g2[idx], color=color2, alpha=0.8, lw=0.5)
+            bx.semilogx(t_el, g2_temp, color=color2, alpha=0.8, lw=0.5)
             # bx.errorbar(t_el, g2[n], yerr=g2_err[n], fmt='o',
             #             ecolor='lightgreen',
             #             color='blue', ms=0.001, mew=1, capsize=3, alpha=0.8)
@@ -453,19 +457,22 @@ def test_plots():
     fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
     convert_hdf_webpage(fname)
 
+    fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
+    convert_hdf_webpage(fname)
+
 
 def test_parallel():
     # prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
     # prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
-    prefix = '/net/wolf/data/xpcs8/2021-3/foster202110/cluster_results'
+    prefix = '/home/8ididata/2021-3/foster202110/cluster_results'
     flist = glob2.glob(prefix + '/*.hdf')
     flist.sort()
     flist_twotime = [x for x in flist if 'Twotime' in x]
     for f in flist_twotime:
         flist.remove(f)
 
-    flist_twotime = flist_twotime[0:80] 
-    flist = flist[0:80]
+    flist_twotime = flist_twotime[100:110] 
+    flist = flist[100:110]
     convert_many_files(flist, mode='parallel')
     convert_many_files(flist_twotime, mode='parallel')
 
