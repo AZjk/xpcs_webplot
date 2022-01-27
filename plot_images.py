@@ -9,6 +9,7 @@ import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from html_utlits import convert_to_html
 import logging
+import traceback
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s.%(msecs)03d %(name)-12s %(levelname)s %(message)s',
                     datefmt='%m-%d %H:%M:%S')
@@ -32,6 +33,7 @@ key_map = {
     "Int_t": "/exchange/frameSum",
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
+    "sphilist": "/xpcs/sphilist",
     "t_begin": "/measurement/instrument/source_begin/datetime",
     "t_end": "/measurement/instrument/source_end/datetime",
     "temperature_a_rbv": "/measurement/sample/temperature_A",
@@ -77,9 +79,14 @@ def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
 
     figsize = (16, 3.6)
     fig, ax = plt.subplots(1, 2, figsize=figsize)
-
+    
+    # some problem with missing qvals
+    min_dim = min(ql_sta.shape[1], Iqp.shape[1])
+    sl = slice(0, min_dim)
+    Iqp = Iqp[:, sl]
+    q = ql_sta[0, sl]
     for n in range(Iqp.shape[0]):
-        ax[0].loglog(ql_sta[0] * 1000, Iqp[n], label=f'{n}')
+        ax[0].loglog(q * 1000, Iqp[n], label=f'{n}')
 
     ax[0].set_xlabel("$q (\\AA^{-1}) \\times 10^3$")
     ax[0].set_ylabel("Intensity (photons/pixel)")
@@ -347,6 +354,17 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     logging.info(f'finished in [{tot_time}]s: [{basename}]')
 
 
+def convert_hdf_webpage_wrapper(*args, **kwargs):
+    try:
+        x = convert_hdf_webpage(*args, **kwargs)
+    except Exception as ex:
+        basename = os.path.basename(args[0])
+        logging.info(f'failed job: [{basename}]')
+        traceback.print_exc()
+    else:
+        return x
+
+
 def convert_many_files(flist, num_workers=12, mode='parallel',
                        target_dir='html'):
     flist.sort()
@@ -355,7 +373,7 @@ def convert_many_files(flist, num_workers=12, mode='parallel',
         args = list(zip(flist, [target_dir] * len(flist)))
         p = Pool(num_workers)
         # p.map(convert_hdf_webpage, flist)
-        p.starmap(convert_hdf_webpage, args)
+        p.starmap(convert_hdf_webpage_wrapper, args)
     else:
         for f in flist:
             convert_hdf_webpage(f)
@@ -363,21 +381,30 @@ def convert_many_files(flist, num_workers=12, mode='parallel',
 
 def test_plots():
     # twotime
-    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_hdf_webpage(fname)
+    # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    # convert_hdf_webpage(fname)
 
-    fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
+    # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
+    # convert_hdf_webpage(fname)
+
+    fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
     convert_hdf_webpage(fname)
 
 
 def test_parallel():
     # prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
-    prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
-    flist = glob2.glob(prefix + '/*Twotime.hdf')
+    # prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
+    prefix = '/net/wolf/data/xpcs8/2021-3/foster202110/cluster_results'
+    flist = glob2.glob(prefix + '/*.hdf')
     flist.sort()
-    # print(flist)
-    # convert_many_files(flist, mode='parallel')
+    flist_twotime = [x for x in flist if 'Twotime' in x]
+    for f in flist_twotime:
+        flist.remove(f)
+
+    flist_twotime = flist_twotime[0:80] 
+    flist = flist[0:80]
     convert_many_files(flist, mode='parallel')
+    convert_many_files(flist_twotime, mode='parallel')
 
 
 if __name__ == '__main__':
