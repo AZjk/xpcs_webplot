@@ -91,9 +91,9 @@ def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
     Iqp = Iqp[:, sl]
     q = ql_sta[0, sl]
     for n in range(Iqp.shape[0]):
-        ax[0].loglog(q * 1000, Iqp[n], label=f'{n}')
+        ax[0].loglog(q, Iqp[n], label=f'{n}')
 
-    ax[0].set_xlabel("$q (\\AA^{-1}) \\times 10^3$")
+    ax[0].set_xlabel("$q (\\AA^{-1})$")
     ax[0].set_ylabel("Intensity (photons/pixel)")
     ax[0].set_title('Partial mean')
     ax[0].legend()
