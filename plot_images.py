@@ -2,6 +2,7 @@ import numpy as np
 import h5py
 import os
 import matplotlib.pyplot as plt
+from matplotlib.colors import hsv_to_rgb
 from multiprocessing import Pool
 import glob2
 import time
@@ -11,7 +12,7 @@ from html_utlits import convert_to_html
 import logging
 import traceback
 logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s %(message)s',
+                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s',
                     datefmt='%m-%d %H:%M:%S')
 
 
@@ -34,6 +35,10 @@ key_map = {
     "avg_frames": "/xpcs/avg_frames",
     "stride_frames": "/xpcs/stride_frames",
     "sphilist": "/xpcs/sphilist",
+    "snophi": "xpcs/snophi",
+    "snoq": "xpcs/snoq",
+    "dnophi": "xpcs/dnophi",
+    "dnoq": "xpcs/dnoq",
     "t_begin": "/measurement/instrument/source_begin/datetime",
     "t_end": "/measurement/instrument/source_end/datetime",
     "temperature_a_rbv": "/measurement/sample/temperature_A",
@@ -118,15 +123,29 @@ def find_min_max(x, pmin=1, pmax=99):
     return vmin, vmax
 
 
-def plot_roi_mask(fig, ax, roi_mask, num_img):
-    valid_roi = roi_mask == 1
-    roi_mask = roi_mask.astype(np.float32)
-    roi_mask[roi_mask < 2] = np.nan
-    roi_mask -= 1
-    # mark the overall valid region with light color;
-    roi_mask[valid_roi] = 0.25
-    im = ax.imshow(roi_mask, origin='lower', cmap=plt.get_cmap('Greys'),
-                   vmin=0, vmax=num_img + 1)
+def plot_roi_mask(fig, ax, roi_mask, num_img, nophi=1):
+    assert roi_mask.ndim == 2
+    invalid_idx = roi_mask < 2
+
+    if nophi == 1:
+        valid_roi = roi_mask == 1
+        roi_mask = roi_mask.astype(np.float32)
+        roi_mask -= 1
+        roi_mask[invalid_idx] = np.nan
+        # mark the overall valid region with light color;
+        roi_mask[valid_roi] = 0.25
+        im = ax.imshow(roi_mask, origin='lower', cmap=plt.get_cmap('Greys'),
+                       vmin=0, vmax=num_img + 1)
+    else:
+        s = np.ones_like(roi_mask, dtype=np.float32) 
+        h = roi_mask % nophi
+        h = (h - np.min(h)) / (np.max(h) - np.min(h))
+        v = roi_mask // nophi
+        v = 1 - (v - np.min(v)) / (np.max(v) - np.min(v))
+        roi_mask = hsv_to_rgb(np.dstack((h, s, v)))
+        roi_mask[invalid_idx] = np.nan
+        im = ax.imshow(roi_mask)
+
     divider0 = make_axes_locatable(ax)
     cax = divider0.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(im, cax=cax)
@@ -135,21 +154,34 @@ def plot_roi_mask(fig, ax, roi_mask, num_img):
 
 
 def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
-                      num_img=4, dpi=240):
+                      dnophi=1, num_img=4, dpi=240):
 
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
-    plot_roi_mask(fig, ax[0], roi_mask, num_img)
+    plot_roi_mask(fig, ax[0], roi_mask, num_img, dnophi)
 
-    for n in range(g2.shape[0]):
+    cmap = plt.cm.get_cmap('hsv')
+    rgba = cmap(0.5)
+
+    for n in range(g2.shape[0] // dnophi):
         bx = ax[n + 1]
-        bx.semilogx(t_el, g2[n], 'bo', mfc='none', ms=2.0, alpha=0.8)
-        bx.semilogx(t_el, g2[n], 'r', alpha=0.5, lw=0.5)
-        # bx.errorbar(t_el, g2[n], yerr=g2_err[n], fmt='o',
-        #             ecolor='lightgreen',
-        #             color='blue', ms=0.001, mew=1, capsize=3, alpha=0.8)
-        # bx.set_xscale('log')
+        for p in range(dnophi):
+            if dnophi == 1:
+                color1 = 'b'
+                color2 = 'r'
+            else:
+                color1 = cmap(p / 1.0 / dnophi)
+                color2 = color1 
+
+            idx = n * dnophi + p
+            bx.semilogx(t_el, g2[idx], 'o', color=color1, mfc='none', ms=2.0, 
+                        alpha=0.8)
+            bx.semilogx(t_el, g2[idx], color=color2, alpha=0.8, lw=0.5)
+            # bx.errorbar(t_el, g2[n], yerr=g2_err[n], fmt='o',
+            #             ecolor='lightgreen',
+            #             color='blue', ms=0.001, mew=1, capsize=3, alpha=0.8)
+            # bx.set_xscale('log')
         bx.set_xlabel('t (s)')
         bx.set_ylabel('g2')
         bx.set_title(label[n])
@@ -234,18 +266,27 @@ def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
     tot_num = g2d.shape[0]
     img_list = []
 
-    for n in range(0, (tot_num + num_img - 1) // num_img):
-        st = num_img * n
-        ed = min(tot_num, num_img * (n + 1))
+    shape = (int(info['dnoq']), int(info['dnophi']))
+    ql_dyn = info['ql_dyn'][0].reshape(shape)[:, 0]
+
+    for n in range(0, (shape[0] + num_img - 1) // num_img):
+        st = num_img * n * shape[1]
+        ed = min(tot_num, num_img * (n + 1) * shape[1])
         save_name = f'g2_{n:04d}.png'
         label = []
         roi_mask = np.copy(info['mask']).astype(np.int64)
+
         for idx in range(st, ed):
-            label.append('$q=%.4f\\AA^{-1}$' % info['ql_dyn'][0, idx])
-            roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
+            # val = (idx - st) // shape[1] + 1
+            val = (idx - st)  + 1
+            roi_mask += (info['dqmap'] == (idx + 1)) * val 
+
+        for idx in range(st // shape[1], ed // shape[1]):
+            label.append('$q=%.4f\\AA^{-1}$' % ql_dyn[idx])
 
         plot_multitau_row(info['t_el'][0], g2d[st:ed], g2e[st:ed], roi_mask,
-                          save_name, save_dir, label, num_img, dpi)
+                          save_name, save_dir, label, num_img=num_img, dpi=dpi,
+                          dnophi=shape[1])
 
         img_list.append(os.path.join(os.path.basename(save_dir), save_name))
 
@@ -277,8 +318,27 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     return {'correlation': img_list}
 
 
+def reshape_static_analysis(info):
+    shape = (int(info['snoq']), int(info['snophi']))
+    size = shape[0] * shape[1]
+    nan_idx = np.isnan(info['sphilist'][0])
+    Iqp = info['Iqp']
+    x = np.zeros((Iqp.shape[0], size), dtype=np.float32)
+    for n in range(Iqp.shape[0]):
+        x[n, ~nan_idx] = Iqp[n]
+        x[n, nan_idx] = np.nan
+    x = x.reshape(Iqp.shape[0], *shape)
+
+    # average the phi dimension
+    x = np.nanmean(x, axis=2)
+    info['Iqp'] = x
+    info['ql_sta'] = info['ql_sta'].reshape(*shape).T
+
+    return
+
+
 def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
-                        overwrite=False):
+                        overwrite=True):
     t_start = time.perf_counter()
     basename = os.path.basename(fname)
     save_dir_rel = os.path.splitext(basename)[0]
@@ -322,11 +382,14 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     # update the dynamic qmap with a cropped one
     info['dqmap'] = dqmap
     info['mask'] = mask
+    # print(info['g2'].shape)
+    reshape_static_analysis(info)
 
     html_dict = {'scattering': os.path.join(save_dir_rel, 'saxs_mask.png')}
 
     img_description = plot_stability(
         info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
+
     html_dict.update(img_description)
 
     if atype == 'Twotime':
@@ -350,7 +413,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     html_dict.update({'metadata': metadata})
     convert_to_html(save_dir, html_dict)
     tot_time = round(time.perf_counter() - t_start, 3)
-    logging.info(f'job finished in [{tot_time}]s: [{basename}]')
+    logging.info(f'job finished in {tot_time}s: [{basename}]')
 
 
 def convert_hdf_webpage_wrapper(*args, **kwargs):
@@ -380,14 +443,15 @@ def convert_many_files(flist, num_workers=12, mode='parallel',
 
 def test_plots():
     # twotime
-    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_hdf_webpage(fname)
+    # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    # convert_hdf_webpage(fname)
 
     fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     convert_hdf_webpage(fname)
 
     # fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
-    # convert_hdf_webpage(fname)
+    fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
+    convert_hdf_webpage(fname)
 
 
 def test_parallel():
