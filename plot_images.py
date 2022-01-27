@@ -316,7 +316,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
     info['delta_t'] = delta_t
     info['t_el'] = delta_t * info['tau']
-
+    info['Int_t'][0] *= delta_t
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
                                       info['dqmap'], save_dir)
@@ -381,14 +381,14 @@ def convert_many_files(flist, num_workers=12, mode='parallel',
 
 def test_plots():
     # twotime
-    # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    # convert_hdf_webpage(fname)
-
-    # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
-    # convert_hdf_webpage(fname)
-
-    fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
+    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     convert_hdf_webpage(fname)
+
+    fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
+    convert_hdf_webpage(fname)
+
+    # fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
+    # convert_hdf_webpage(fname)
 
 
 def test_parallel():
@@ -408,5 +408,5 @@ def test_parallel():
 
 
 if __name__ == '__main__':
-    # test_plots()
-    test_parallel()
+    test_plots()
+    # test_parallel()
