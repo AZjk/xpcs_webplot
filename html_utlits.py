@@ -1,6 +1,17 @@
 import jinja2
 import os
 import json
+import shutil
+
+
+def copy_minipreview(target_folder):
+    source_dir = "template/mini-preview/"
+    flist = ['jquery.minipreview.css', 'jquery.minipreview.js']
+    for f in flist:
+        target_file = os.path.join(target_folder, f)
+        if not os.path.isfile(f):
+            shutil.copy(os.path.join(source_dir, f), target_file)
+    return
 
 
 def convert_to_html(save_dir, data_dict):
@@ -37,6 +48,8 @@ def combine_all_htmls(fname='index.html', target_folder='html'):
     # lets write the substitution to a file
     with open(os.path.join(target_folder, fname), 'w') as f:
         f.write(subs)
+
+    copy_minipreview(target_folder)
 
 
 if __name__ == '__main__':
