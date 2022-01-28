@@ -5,7 +5,6 @@
   <style>
     body {
       margin: 0px;
-      margin-top: 40px;
       padding: 0px;
       font-family: Arial, Helvetica, sans-serif;
     }
@@ -35,22 +34,100 @@
   <head>
 
   <body>
-    <div, id='metadata' class='styled-table'>
+
+
+    <div, id='filetable' class='styled-table'>
       <table>
         <tr>
           <th> Filename </th>
           <th> Analysis Type </th>
           <th> Date </th>
         </tr>
+        <tr>
+          <td>
+            <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for fname.."
+              title="Type in a fname" size="100">
+          </td>
+          <td>
+            <input type="text" id="type_str" onkeyup="filter_type()" placeholder="Search for type.."
+              title="Type in a type">
+          </td>
+          <td>
+            <input type="date" id="time_str" title="Type in a name">
+          </td>
+        </tr>
+        <!--
+        <input type="time" id="time_str" onkeyup="filter_fname()" placeholder="Search for names.."
+-->
         {% for line in mydata %}
         <tr>
-          <td> <a href={{line[1]}} > {{line[0]}} </a> </td>
+          <td> <a href={{line[1]}}> {{line[0]}} </a>
+          </td>
           <td> {{line[2]}} </td>
           <td> {{line[3]}} </td>
         </tr>
         {% endfor %}
       </table>
-    </div>
+      </div>
+
+
+      <script>
+        function filter_fname() {
+          var input, filter, table, tr, td, i, txtValue;
+          input = document.getElementById("fname_str");
+          filter = input.value.toUpperCase();
+          table = document.getElementById("filetable");
+          tr = table.getElementsByTagName("tr");
+          for (i = 2; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[0];
+            if (td) {
+              txtValue = td.textContent || td.innerText;
+              if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+              } else {
+                tr[i].style.display = "none";
+              }
+            }
+          }
+        }
+
+        function filter_type() {
+          var input, filter, table, tr, td, i, txtValue;
+          input = document.getElementById("type_str");
+          filter = input.value.toUpperCase();
+          table = document.getElementById("filetable");
+          tr = table.getElementsByTagName("tr");
+          for (i = 2; i < tr.length; i++) {
+            td = tr[i].getElementsByTagName("td")[1];
+            if (td) {
+              txtValue = td.textContent || td.innerText;
+              if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = "";
+              } else {
+                tr[i].style.display = "none";
+              }
+            }
+          }
+        }
+
+      </script>
+
+      <!-- https://github.com/lonekorean/mini-preview -->
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+      <!-- MiniPreview stuff here -->
+      <link href="jquery.minipreview.css" rel="stylesheet">
+      <script src="jquery.minipreview.js"></script>
+      <script>
+        $(function () {
+          $('sdfe').miniPreview({
+            width: 640,
+            height: 480,
+            scale: .5,
+            prefetch: 'none'
+          });
+
+        });
+      </script>
 
   </body>
 
