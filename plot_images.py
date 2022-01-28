@@ -297,27 +297,56 @@ def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
     return {'correlation': img_list}
 
 
+class TwotimeStream:
+    def __init__(self, fname) -> None:
+        self.fname = fname
+        self.fhdl = h5py.File(fname, 'r')
+        self.keys = list(self.fhdl['/exchange/C2T_all/'])
+        self.diag_indices = None
+        self.length = len(self.keys)
+
+    def __getitem__(self, idx):
+        qidx = int(self.keys[idx][3:])
+        c2_half = self.fhdl['/exchange/C2T_all/' + self.keys[idx]][()]
+        c2 = c2_half + c2_half.T
+        if self.diag_indices is None:
+            self.diag_indices = np.diag_indices(c2_half.shape[0])
+        c2[self.diag_indices] /= 2.0
+        return c2, qidx
+    
+    def __len__(self):
+        return self.length
+    
+    def close(self):
+        self.fhdl.close()
+
 
 def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
-    c2_val = info['c2_val']
-    c2_key = info['c2_key']
-    tot_num = len(c2_key) 
     img_list = []
+    c2_stream = TwotimeStream(info['fname'])
+    tot_num = len(c2_stream) 
+
+    ql_dyn = info['ql_dyn'][0]
 
     for n in range(0, (tot_num + num_img - 1) // num_img):
         st = num_img * n
         ed = min(tot_num, num_img * (n + 1))
         save_name = f'c2_{n:04d}.png'
+        c2_val = []
         label = []
         roi_mask = np.copy(info['mask']).astype(np.int64)
         for idx in range(st, ed):
-            label.append(f'c2_{c2_key[idx]:04d}')
-            roi_mask += (info['dqmap'] == (idx + 1)) * (idx - st + 1)
+            c2, qidx = c2_stream[idx]
+            c2_val.append(c2)
+            label.append('$q=%.4f\\AA^{-1}$' % ql_dyn[idx])
+            roi_mask += (info['dqmap'] == qidx) * (idx - st + 1)
 
-        plot_twotime_row(info['delta_t'], c2_val[st:ed], label, roi_mask,
+        plot_twotime_row(info['delta_t'], c2_val, label, roi_mask,
                         save_name, save_dir, num_img=num_img, dpi=dpi)
 
         img_list.append(os.path.join(os.path.basename(save_dir), save_name))
+
+    c2_stream.close()
 
     return {'correlation': img_list}
 
@@ -361,25 +390,18 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
         return
 
     with h5py.File(fname, 'r') as f:
-        for key, real_key in key_map.items():
+        for key in key_map.keys():
             if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
             info[key] = get(f, key)
 
-        if atype == 'Twotime':
-            info['c2_val'] = [] 
-            info['c2_key'] = []
-            all_keys = list(f['/exchange/C2T_all/'])
-            for key in all_keys:
-                c2_half = f['/exchange/C2T_all/' + key][()]
-                c2 = c2_half + c2_half.T
-                c2_half[np.diag_indices(c2_half.shape[0])] /= 2.0
-                info['c2_val'].append(c2)
-                info['c2_key'].append(int(key[3:]))
-            info['tau'] = info['c2_val'][0].shape[0]
+        
     delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
+    if atype == 'Multitau':
+        info['t_el'] = delta_t * info['tau']
+
     info['delta_t'] = delta_t
-    info['t_el'] = delta_t * info['tau']
+    info['fname'] = fname
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
                                       info['dqmap'], save_dir)
@@ -447,18 +469,19 @@ def convert_many_files(flist, num_workers=12, mode='parallel',
 
 def test_plots():
     # twotime
-    # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    print(fname)
+    convert_hdf_webpage(fname)
+
+    # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     # convert_hdf_webpage(fname)
 
-    fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
-    convert_hdf_webpage(fname)
+    # # fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
+    # fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
+    # convert_hdf_webpage(fname)
 
-    # fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
-    fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
-    convert_hdf_webpage(fname)
-
-    fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
-    convert_hdf_webpage(fname)
+    # fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
+    # convert_hdf_webpage(fname)
 
 
 def test_parallel():
