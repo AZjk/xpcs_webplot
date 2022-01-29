@@ -370,8 +370,7 @@ def reshape_static_analysis(info):
     return
 
 
-def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=240,
-                        overwrite=True):
+def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
 
     t_start = time.perf_counter()
     basename = os.path.basename(fname)
@@ -452,10 +451,10 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=240,
     logging.info(f'job finished in {tot_time}s: [{basename}]')
 
 
-def convert_hdf_webpage_wrapper(args, kwargs):
+def hdf2web_safe(*args, **kwargs):
     try:
-        x = convert_hdf_webpage(*args, **kwargs)
-    except Exception as ex:
+        x = hdf2web(*args, **kwargs)
+    except Exception:
         basename = os.path.basename(args[0])
         logging.info(f'job failed: [{basename}]')
         traceback.print_exc()
@@ -463,26 +462,32 @@ def convert_hdf_webpage_wrapper(args, kwargs):
         return x
 
 
+def hdf2web_safe_fixed(args, kwargs):
+    # print(args, kwargs)
+    return hdf2web_safe(*args, **kwargs)
+
+
 def convert_many_files(flist, num_workers=24, target_dir='html', **kwargs):
 
     args = list(zip(flist, [target_dir] * len(flist)))
     p = Pool(num_workers)
     # p.map(convert_hdf_webpage, flist)
-    p.starmap(convert_hdf_webpage_wrapper, args)
+    p.starmap(hdf2web_safe, args)
 
 
 def test_plots():
+    target_dir = 'html2'
     # twotime
     fname = '/net/wolf/data/xpcs8/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_hdf_webpage(fname)
+    hdf2web(fname, target_dir=target_dir)
 
     # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     # convert_hdf_webpage(fname)
 
     fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
     # fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
-    convert_hdf_webpage(fname)
+    hdf2web(fname, target_dir=target_dir)
 
     # fname = "/net/wolf/data/xpcs8/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     # # fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
