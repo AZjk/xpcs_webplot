@@ -370,24 +370,34 @@ def reshape_static_analysis(info):
     return
 
 
-def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
+def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=240,
                         overwrite=True):
+
     t_start = time.perf_counter()
     basename = os.path.basename(fname)
+
+    if not os.path.isfile(fname):
+        logging.error(f'file not exists: [{basename}]')
+        return
+
+    if not os.path.isdir(target_dir):
+        logging.error(f'target dir not exists: [{target_dir}]')
+        return
+
     save_dir_rel = os.path.splitext(basename)[0]
     if not overwrite and check_exist(basename, target_dir):
-        logging.info(f'job skip to avoid overwrite: [{basename}].')
+        logging.info(f'job skip to avoid overwrite: [{basename}]')
+        return
+
+    atype = get_anaylsis_type(fname)
+    if atype not in ['Twotime', 'Multitau']:
+        logging.error(f'file type error: [{basename}]')
         return
 
     save_dir = os.path.join(target_dir, save_dir_rel)
     if not os.path.isdir(save_dir):
         os.mkdir(save_dir)
-
     info = {}
-    atype = get_anaylsis_type(fname)
-    if atype not in ['Twotime', 'Multitau']:
-        logging.info(f'file type error: [{basename}].')
-        return
 
     with h5py.File(fname, 'r') as f:
         for key in key_map.keys():
@@ -404,7 +414,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     info['fname'] = fname
     # plot saxs and sqmap
     mask, dqmap = plot_crop_mask_saxs(info['mask'], info['saxs_2d'],
-                                      info['dqmap'], save_dir)
+                                      info['dqmap'], save_dir, dpi=dpi)
     # update the dynamic qmap with a cropped one
     info['dqmap'] = dqmap
     info['mask'] = mask
@@ -414,7 +424,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     html_dict = {'scattering': os.path.join(save_dir_rel, 'saxs_mask.png')}
 
     img_description = plot_stability(
-        info['ql_sta'], info['Iqp'], info['Int_t'], save_dir)
+        info['ql_sta'], info['Iqp'], info['Int_t'], save_dir, dpi=dpi)
 
     html_dict.update(img_description)
 
@@ -442,7 +452,7 @@ def convert_hdf_webpage(fname, target_dir='html', num_img=4, dpi=120,
     logging.info(f'job finished in {tot_time}s: [{basename}]')
 
 
-def convert_hdf_webpage_wrapper(*args, **kwargs):
+def convert_hdf_webpage_wrapper(args, kwargs):
     try:
         x = convert_hdf_webpage(*args, **kwargs)
     except Exception as ex:
@@ -453,51 +463,46 @@ def convert_hdf_webpage_wrapper(*args, **kwargs):
         return x
 
 
-def convert_many_files(flist, num_workers=12, mode='parallel',
-                       target_dir='html'):
-    flist.sort()
+def convert_many_files(flist, num_workers=24, target_dir='html', **kwargs):
 
-    if mode == 'parallel':
-        args = list(zip(flist, [target_dir] * len(flist)))
-        p = Pool(num_workers)
-        # p.map(convert_hdf_webpage, flist)
-        p.starmap(convert_hdf_webpage_wrapper, args)
-    else:
-        for f in flist:
-            convert_hdf_webpage(f)
+    args = list(zip(flist, [target_dir] * len(flist)))
+    p = Pool(num_workers)
+    # p.map(convert_hdf_webpage, flist)
+    p.starmap(convert_hdf_webpage_wrapper, args)
 
 
 def test_plots():
     # twotime
-    fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    print(fname)
+    fname = '/net/wolf/data/xpcs8/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
+    # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     convert_hdf_webpage(fname)
 
     # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     # convert_hdf_webpage(fname)
 
-    # # fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
+    fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
     # fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
-    # convert_hdf_webpage(fname)
+    convert_hdf_webpage(fname)
 
-    # fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
+    # fname = "/net/wolf/data/xpcs8/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
+    # # fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     # convert_hdf_webpage(fname)
 
 
 def test_parallel():
     # prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
-    # prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
-    prefix = '/home/8ididata/2021-3/foster202110/cluster_results'
+    prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
+    # prefix = '/home/8ididata/2021-3/foster202110/cluster_results'
     flist = glob2.glob(prefix + '/*.hdf')
     flist.sort()
-    flist_twotime = [x for x in flist if 'Twotime' in x]
-    for f in flist_twotime:
-        flist.remove(f)
+    # flist_twotime = [x for x in flist if 'Twotime' in x]
+    # for f in flist_twotime:
+    #     flist.remove(f)
 
-    flist_twotime = flist_twotime[100:110] 
-    flist = flist[100:110]
+    # flist_twotime = flist_twotime[100:110] 
+    # flist = flist[100:110]
     convert_many_files(flist, mode='parallel')
-    convert_many_files(flist_twotime, mode='parallel')
+    # convert_many_files(flist_twotime, mode='parallel')
 
 
 if __name__ == '__main__':
