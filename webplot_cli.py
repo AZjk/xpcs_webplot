@@ -2,12 +2,9 @@ import glob2
 import os
 from plot_images import hdf2web_safe as hdf2web
 from plot_images import hdf2web_safe_fixed as hdf2web_fixed
-import logging
+from html_utlits import combine_all_htmls
 import json
-import argparse
-
-
-# hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False)
+import sys
 
 
 home_dir = os.path.join(os.path.expanduser('~'), '.xpcs_webplot')
@@ -16,23 +13,28 @@ if not os.path.isdir(home_dir):
 config_fname = os.path.join(home_dir, 'default_setting.json')
 
 
-try:
-    with open(config_fname, 'r') as f:
-        default_setting = json.load(f)
-except Exception:
-    default_setting = {
-        "dpi": 120,
-        "overwrite": False,
-        "num_img": 4,
-        "target_dir": './'
-    }
+def load_setting():
+    try:
+        with open(config_fname, 'r') as f:
+            default_setting = json.load(f)
+    except Exception:
+        default_setting = {
+            "dpi": 120,
+            "overwrite": False,
+            "num_img": 4,
+            "target_dir": './'
+        }
+        save_setting(default_setting)
+    return default_setting
+
+
+def save_setting(new_setting):
+    with open(config_fname, 'w') as f:
+        json.dump(new_setting, f)
 
 
 def convert_many_files(flist, num_workers=24, **kwargs):
     assert isinstance(flist, list)
-    setting = default_setting.copy()
-    setting.update(kwargs)
-    kwargs = setting
 
     tot_num = len(flist)
 
@@ -54,30 +56,37 @@ def convert_folder(folder, **kwargs):
         convert_many_files(flist, **kwargs)
 
 
-def convert_one_file(fname, **kwargs):
-    setting = default_setting.copy()
-    setting.update(kwargs)
-    return hdf2web(fname, **setting)
+def convert_one_file(fname=None, **kwargs):
+    return hdf2web(fname, **kwargs)
 
 
 def update_default_setting(**kwargs):
-    setting = default_setting.copy()
+    setting = load_setting()
     setting.update(kwargs)
     with open(os.path.join(config_fname), 'w') as f:
         json.dump(setting, f, indent=4)
 
 
-# def generate_random_dir(prefix='/net/wolf/data/xpcs8/2021-3', dry_run=False):
-def generate_random_dir(prefix='/local/data_miaoqi/html', dry_run=False):
+def generate_random_dir(prefix='/net/wolf/data/xpcs8/2021-3/html'):
+# def generate_random_dir(prefix='/local/data_miaoqi/html'):
     import uuid
     new_id = str(uuid.uuid4())[-12:]
     new_dir = os.path.join(prefix, new_id)
-    if not dry_run:
+    print("New random directory is", new_dir)
+    flag_str = input('-- create this folder and set it as the target_dir ? [Y/N] ').upper().strip()
+    assert flag_str in ['Y', 'N']
+    flag = (flag_str == 'Y')
+    if flag:
         os.mkdir(new_dir)
         update_default_setting(target_dir=new_dir)
-        print("new directory is", new_dir)
+        setting = load_setting()
+        print("-- new dir is created and set as the new target_dir.")
+        print(json.dumps(setting, indent=4))
     else:
-        print("dry run: dir is", new_dir)
+        setting = load_setting()
+        print("-- setting not changed.")
+        print(json.dumps(setting, indent=4))
+    print(f'You may change other settings manually in the file [{config_fname}]')
 
 
 def test_plots():
@@ -98,18 +107,41 @@ def test_plots():
     # convert_hdf_webpage(fname)
 
 
-parser = argparse.ArgumentParser(description='Convert XPCS hdf result file to webpage')
+# setting = load_setting()
+# parser = argparse.ArgumentParser(description='Convert XPCS hdf result file to webpage')
+# 
+# parser.add_argument('--fname', '-f', type=str, help='hdf filename or folder. If a folder is passed, every hdf file in it will be converted')
+# 
+# parser.add_argument('--target_dir', type=str, nargs='?', default=setting['target_dir'],
+#                     help='output directory')
+# 
+# parser.add_argument('--num_img', type=int, nargs='?', default=setting['num_img'], help='number of images per row')
+# parser.add_argument('--dpi', type=int, nargs='?', default=setting['dpi'], help='dpi controls the image resolution. For 4K/3840px, dpi is 240')
+# 
+# parser.add_argument('--overwrite', type=bool, nargs='?', default=setting['overwrite'], help='overwrite flag')
+# 
+# args = parser.parse_args()
 
-parser.add_argument('fname', metavar='fname', type=str, help='hdf filename')
+# args = vars(args)
+kwargs = load_setting()
 
-parser.add_argument('target_dir', type=str, nargs='?', default= help='output directory')
+if len(sys.argv) >= 2:
+    for fname in sys.argv[1:]:
+        if os.path.isfile(fname):
+            convert_one_file(fname, **kwargs)
+        elif os.path.isdir(fname):
+            convert_folder(fname, **kwargs)
+        else:
+            print('fname is not a folder or dir')
+else:
+    print('Usage: webplot fname.hdf     # plot one hdf file')
+    print('Usage: webplot folder        # plot all hdf files in the folder')
+    print('------------------------------------------------------------------')
+    choice = input('press C to combine htmls or press S to setup the directory: ').lower().strip()
+    if choice == 'c':
+        combine_all_htmls(kwargs['target_dir'])
+    elif choice == 's':
+        generate_random_dir()
+    else:
+        print(f'invalid input [{choice}]. quit')
 
-parser.add_argument('num_img', type=int, default=-1, help='number of images per row')
-
-parser.add_argument('overwrite', type=bool, default=-1, help='overwrite flag')
-
-args = parser.parse_args()
-
-# print(args.accumulate(args.integers))
-# hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False)
-print(args)
