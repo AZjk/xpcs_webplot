@@ -60,7 +60,11 @@ def combine_all_htmls(target_folder='html'):
             f.write(subs)
 
     copy_minipreview(target_folder)
+    basename = os.path.basename(target_folder)
+    print(f'hdf files combined: [{target_folder}]')
+    print(f'--total number of files: [{len(html_info)}]')
+    print(f'--open link http://164.54.100.176/{basename}')
 
 
 if __name__ == '__main__':
-    combine_all_htmls()
+    pass
