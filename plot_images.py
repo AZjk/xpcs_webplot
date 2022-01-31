@@ -66,9 +66,12 @@ def get(hdf_handler, key):
 def get_anaylsis_type(hdf_fname):
     try:
         with h5py.File(hdf_fname, 'r') as f:
-            atype = f.get('/xpcs/analysis_type')[()].decode().capitalize()
+            atype = f.get('/xpcs/analysis_type')[()]
+            if type(atype) in [np.bytes_, bytes]:
+                atype = atype.decode()
+            atype = atype.capitalize()
     except Exception:
-        return None
+        atype = None
     return atype
 
 
@@ -354,19 +357,20 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
 def reshape_static_analysis(info):
     shape = (int(info['snoq']), int(info['snophi']))
     size = shape[0] * shape[1]
-    nan_idx = np.isnan(info['sphilist'][0])
-    Iqp = info['Iqp']
-    x = np.zeros((Iqp.shape[0], size), dtype=np.float32)
-    for n in range(Iqp.shape[0]):
-        x[n, ~nan_idx] = Iqp[n]
-        x[n, nan_idx] = np.nan
-    x = x.reshape(Iqp.shape[0], *shape)
+    # results from gpu code has a dimension problem; to be fixed later
+    if not isinstance(info['sphilist'], float): 
+        nan_idx = np.isnan(info['sphilist'][0])
+        Iqp = info['Iqp']
+        x = np.zeros((Iqp.shape[0], size), dtype=np.float32)
+        for n in range(Iqp.shape[0]):
+            x[n, ~nan_idx] = Iqp[n]
+            x[n, nan_idx] = np.nan
+        x = x.reshape(Iqp.shape[0], *shape)
 
-    # average the phi dimension
-    x = np.nanmean(x, axis=2)
-    info['Iqp'] = x
-    info['ql_sta'] = info['ql_sta'].reshape(*shape).T
-
+        # average the phi dimension
+        x = np.nanmean(x, axis=2)
+        info['Iqp'] = x
+        info['ql_sta'] = info['ql_sta'].reshape(*shape).T
     return
 
 
@@ -389,6 +393,7 @@ def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
         return
 
     atype = get_anaylsis_type(fname)
+    print(atype)
     if atype not in ['Twotime', 'Multitau']:
         logging.error(f'file type error: [{basename}]')
         return
