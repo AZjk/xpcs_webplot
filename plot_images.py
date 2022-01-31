@@ -231,6 +231,11 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     nonzero = np.nonzero(mask)
     sl_v = slice(np.min(nonzero[0]), np.max(nonzero[0]) + 1)
     sl_h = slice(np.min(nonzero[1]), np.max(nonzero[1]) + 1)
+
+    # in some cases qmap and mask are rotated.
+    if mask.shape != saxs.shape:
+        saxs = saxs.T
+
     mask = mask[sl_v, sl_h]
     saxs = saxs[sl_v, sl_h]
     dqmap = dqmap[sl_v, sl_h]
