@@ -90,18 +90,24 @@ def generate_random_dir(prefix='/net/wolf/data/xpcs8/2021-3/html'):
 
 
 def test_plots():
+    target_dir = 'html2'
     # twotime
     fname = '/net/wolf/data/xpcs8/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    convert_one_file(fname, target_dir='html2')
+    convert_one_file(fname, target_dir=target_dir)
 
     # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     # convert_hdf_webpage(fname)
 
     fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
     # fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
-    convert_one_file(fname, dpi=240, num_img=4)
+    convert_one_file(fname, dpi=240, num_img=4, target_dir=target_dir)
 
+    fname = '/net/wolf/data/xpcs8/2021-3/foster202110/cluster_results/B981_2_10k_star_dynamic_0p1Hz_Strain1.01mm_Ampl0.005mm_att5_Lq0_001_0001-0800.hdf'
+    convert_one_file(fname, dpi=240, num_img=4, target_dir=target_dir)
+
+    fname = '/net/wolf/data/xpcs8/2021-3/foster202110/cluster_results/B981_2_10k_star_dynamic_0p1Hz_Strain1.01mm_Ampl0.005mm_att5_Lq0_001_0001-0800_Twotime.hdf'
+    convert_one_file(fname, dpi=240, num_img=4, target_dir=target_dir)
     # fname = "/net/wolf/data/xpcs8/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     # # fndfme = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     # convert_hdf_webpage(fname)
@@ -142,6 +148,8 @@ else:
         combine_all_htmls(kwargs['target_dir'])
     elif choice == 's':
         generate_random_dir()
+    elif choice == 't':
+        test_plots()
     else:
         print(f'invalid input [{choice}]. quit')
 
