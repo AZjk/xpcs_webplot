@@ -2,6 +2,7 @@ import jinja2
 import os
 import json
 import shutil
+import sys
 
 
 def copy_minipreview(target_folder):
@@ -67,4 +68,5 @@ def combine_all_htmls(target_folder='html'):
 
 
 if __name__ == '__main__':
-    pass
+    if len(sys.argv) > 1:
+        combine_all_htmls(sys.argv[1])
