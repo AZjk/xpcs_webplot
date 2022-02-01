@@ -89,10 +89,10 @@ def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
     fig, ax = plt.subplots(1, 2, figsize=figsize)
     
     # some problem with missing qvals
-    min_dim = min(ql_sta.shape[1], Iqp.shape[1])
+    min_dim = min(ql_sta.shape[0], Iqp.shape[1])
     sl = slice(0, min_dim)
     Iqp = Iqp[:, sl]
-    q = ql_sta[0, sl]
+    q = ql_sta[sl]
     for n in range(Iqp.shape[0]):
         ax[0].loglog(q, Iqp[n], label=f'{n}')
 
@@ -361,8 +361,13 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
 
 def reshape_static_analysis(info):
     shape = (int(info['snoq']), int(info['snophi']))
+    # do not reshape nophi = 1
+    if shape[1] == 1:
+        return
+
     size = shape[0] * shape[1]
-    # results from gpu code has a dimension problem; to be fixed later
+    # if sphilist is a one-element array, after np.squeeze it will be a float
+    # there is no need to reshape 
     if not isinstance(info['sphilist'], float): 
         nan_idx = np.isnan(info['sphilist'][0])
         Iqp = info['Iqp']
@@ -375,7 +380,9 @@ def reshape_static_analysis(info):
         # average the phi dimension
         x = np.nanmean(x, axis=2)
         info['Iqp'] = x
-        info['ql_sta'] = info['ql_sta'].reshape(*shape).T
+        q = info['ql_sta'].reshape(*shape).T
+        # get ghe full array of q
+        info['ql_sta'] = np.nanmean(q, axis=0)
     return
 
 
@@ -398,7 +405,6 @@ def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
         return
 
     atype = get_anaylsis_type(fname)
-    print(atype)
     if atype not in ['Twotime', 'Multitau']:
         logging.error(f'file type error: [{basename}]')
         return
@@ -427,7 +433,6 @@ def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
     # update the dynamic qmap with a cropped one
     info['dqmap'] = dqmap
     info['mask'] = mask
-    # print(info['g2'].shape)
     reshape_static_analysis(info)
 
     html_dict = {'scattering': os.path.join(save_dir_rel, 'saxs_mask.png')}
