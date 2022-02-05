@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    body {
+      margin: 0px;
+      padding: 0px;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 8px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2
+    }
+
+    th {
+      background-color: #1bc0dd;
+      color: white;
+      font-size: 18px
+    }
+
+    .column {
+      float: left;
+      width: 50%;
+      overflow: auto
+    }
+
+    /* Clear floats after the columns */
+    .row:after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+  </style>
+
+  <head>
+
+  <body>
+    <div class="row" id="row1">
+      <div class="column" id="col1">
+        <div style="height:100vh;overflow:auto;" id="scroll1">
+          <table id="'filetable">
+            <tr>
+              <th> Filename </th>
+            </tr>
+            <!-- 
+            <tr>
+            <td>
+              <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for fname.."
+                title="Type in a fname" size="100">
+            </td>
+          </tr>
+        -->
+            {% for line in mydata %}
+            <tr>
+              <td> <a href="{{line[1]}}" target="iframe_a"> {{line[0]}} </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+
+      <div class="column">
+        <div style="height:100vh;overflow:auto;">
+          <iframe name="iframe_a" width="100%" height="100%" title="Iframe Example"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!--
+
+    <script>
+      function filter_fname() {
+        var input, filter, table, tr, td, i, txtValue;
+        input = document.getElementById("row1").getElementsByTagName("col1").getElementsByTagName("scroll1").getElementsByTagName("fname_str")
+        filter = input.value.toUpperCase();
+        table = document.getElementById("row1").getElementsByTagName("col1").getElementsByTagName("scroll1").getElementsByTagName("filetalbe")
+        tr = table.getElementsByTagName("tr");
+        for (i = 2; i < tr.length; i++) {
+          td = tr[i].getElementsByTagName("td")[0];
+          if (td) {
+            txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+              tr[i].style.display = "";
+            } else {
+              tr[i].style.display = "none";
+            }
+          }
+        }
+      }
+    </script>
+    -->
+
+  </body>
+
+</html>
