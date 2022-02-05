@@ -27,8 +27,28 @@ def convert_to_html(save_dir, data_dict):
         f.write(subs)
 
 
+def convert_single_folder(target_folder):
+    realpah = os.path.realpath(target_folder)
+    save_dir = realpah.rstrip()
+    basename = os.path.basename(realpah)
+    files = os.listdir(realpah)
+    files = [os.path.join(basename, x) for x in files if x.endswith('.png')]
+    html_dict = {
+        'scattering': os.path.join(basename, "saxs_mask.png"),
+        'stability': os.path.join(basename, "stability.png"),
+    }
+    files.remove(html_dict['scattering'])
+    files.remove(html_dict['stability'])
+    files.sort()
+    html_dict['correlation'] = files
+    with open(os.path.join(realpah, 'metadata.json'), 'r') as f:
+        html_dict['metadata'] = json.load(f) 
+    convert_to_html(save_dir, html_dict)
+    return
+
+
 def combine_all_htmls(target_folder='html'): 
-    targets = ['index.html', 'preview.html']
+    targets = ['index.html', 'preview.html', 'iframe.html']
     files = os.listdir(target_folder)
     htmls = [x for x in files if x.endswith('.html')]
     htmls.sort()
@@ -50,7 +70,9 @@ def combine_all_htmls(target_folder='html'):
                 short_label, x, v1, v2
             ])
 
-    tfiles = ['template/combined.html', 'template/combined_preview.html']
+    tfiles = ['template/combined.html',
+              'template/combined_preview.html',
+              'template/combined_iframe.html']
 
     for target, template in zip(targets, tfiles):
         subs = jinja2.Environment(
@@ -70,3 +92,4 @@ def combine_all_htmls(target_folder='html'):
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         combine_all_htmls(sys.argv[1])
+    # convert_single_folder(sys.argv[1])
