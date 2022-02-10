@@ -5,6 +5,7 @@ from plot_images import hdf2web_safe_fixed as hdf2web_fixed
 from html_utlits import combine_all_htmls
 import json
 import sys
+import datetime
 
 
 home_dir = os.path.join(os.path.expanduser('~'), '.xpcs_webplot')
@@ -67,7 +68,7 @@ def update_default_setting(**kwargs):
         json.dump(setting, f, indent=4)
 
 
-def generate_random_dir(prefix='/net/wolf/data/xpcs8/2021-3/html'):
+def generate_random_dir(prefix='/net/wolf/data/xpcs8/2022-1/html'):
 # def generate_random_dir(prefix='/local/data_miaoqi/html'):
     import uuid
     new_id = str(uuid.uuid4())[-12:]
@@ -132,6 +133,10 @@ def test_plots():
 kwargs = load_setting()
 
 if len(sys.argv) >= 2:
+    if sys.argv[1] == 'combine_all_htmls':
+        print(datetime.datetime.now())
+        combine_all_htmls(kwargs['target_dir'])
+        sys.exit()
     for fname in sys.argv[1:]:
         if os.path.isfile(fname):
             convert_one_file(fname, **kwargs)
