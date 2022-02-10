@@ -84,17 +84,14 @@ def check_exist(basename, target_dir):
 
 
 def plot_stability(ql_sta, Iqp, intt, save_dir='.', dpi=240):
+    if ql_sta.ndim == 2:
+        ql_sta = np.squeeze(ql_sta)
 
     figsize = (16, 3.6)
     fig, ax = plt.subplots(1, 2, figsize=figsize)
     
-    # some problem with missing qvals
-    min_dim = min(ql_sta.shape[0], Iqp.shape[1])
-    sl = slice(0, min_dim)
-    Iqp = Iqp[:, sl]
-    q = ql_sta[sl]
     for n in range(Iqp.shape[0]):
-        ax[0].loglog(q, Iqp[n], label=f'{n}')
+        ax[0].loglog(ql_sta, Iqp[n], label=f'{n}')
 
     ax[0].set_xlabel("$q (\\AA^{-1})$")
     ax[0].set_ylabel("Intensity (photons/pixel)")
@@ -491,11 +488,11 @@ def convert_many_files(flist, num_workers=24, target_dir='html', **kwargs):
 
 
 def test_plots():
-    target_dir = 'html2'
+    target_dir = 'html'
     # twotime
     fname = '/net/wolf/data/xpcs8/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
-    hdf2web(fname, target_dir=target_dir)
+    # hdf2web(fname, target_dir=target_dir)
 
     # fname = '/local/dev/xpcs_data_raw/cluster_results/N077_D100_att02_0001_0001-100000.hdf'
     # convert_hdf_webpage(fname)
@@ -505,6 +502,8 @@ def test_plots():
     hdf2web(fname, target_dir=target_dir)
 
     # fname = "/net/wolf/data/xpcs8/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
+    fname = "/data/xpcs8/2022-1/bates202202/cluster_results_RealTime/I039_B2b2_A180_150C_att03_001_0001-1000.hdf"
+    hdf2web(fname, target_dir=target_dir)
     # # fname = "/home/8ididata/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     # convert_hdf_webpage(fname)
 
