@@ -52,6 +52,9 @@ def combine_all_htmls(target_folder='html'):
     files = os.listdir(target_folder)
     htmls = [x for x in files if x.endswith('.html')]
     htmls.sort()
+    # key=lambda x: os.path.getmtime(x)
+    # print("sort by time")
+    # htmls.sort(key=lambda x: os.path.getmtime(os.path.join(target_folder, x))) 
 
     html_info = []
     for x in htmls:
@@ -69,6 +72,7 @@ def combine_all_htmls(target_folder='html'):
             html_info.append([
                 short_label, x, v1, v2
             ])
+    # html_info.sort(key=lambda x: x[2])
 
     tfiles = ['template/combined.html',
               'template/combined_preview.html',
