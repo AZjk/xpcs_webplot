@@ -55,11 +55,12 @@ def get(hdf_handler, key):
     val = hdf_handler.get(key_map[key])[()]
     if type(val) in [np.bytes_, bytes]:
         val = val.decode()
-    if isinstance(val, np.ndarray):
-        if val.size == 1:
-            val = float(val)
-            if abs(val) > 1e-2:
-                val = round(val, 4)
+    # if isinstance(val, np.ndarray) and key not in ['sphilist', 'ql_sta',]:
+    #     if val.size == 1:
+    #         print(key)
+    #         val = float(val)
+    #         if abs(val) > 1e-2:
+    #             val = round(val, 4)
     return val
 
 
@@ -224,6 +225,8 @@ def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
 def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     figsize = (16, 3.6)
     fig, ax = plt.subplots(1, 2, figsize=figsize)
+    if saxs.ndim == 3:
+        saxs = np.squeeze(saxs)
 
     nonzero = np.nonzero(mask)
     sl_v = slice(np.min(nonzero[0]), np.max(nonzero[0]) + 1)
@@ -278,7 +281,11 @@ def plot_multitau_correlation(info, save_dir, num_img, dpi=120):
     shape = (int(info['dnoq']), int(info['dnophi']))
     ql_dyn = info['ql_dyn'][0].reshape(shape)[:, 0]
 
-    for n in range(0, (shape[0] + num_img - 1) // num_img):
+    num_row = (shape[0] + num_img - 1) // num_img
+    if num_row == 1:
+        num_img = shape[0] 
+
+    for n in range(0, num_row):
         st = num_img * n * shape[1]
         ed = min(tot_num, num_img * (n + 1) * shape[1])
         save_name = f'g2_{n:04d}.png'
@@ -332,8 +339,11 @@ def plot_twotime_correlation(info, save_dir, num_img, dpi=120):
     tot_num = len(c2_stream) 
 
     ql_dyn = info['ql_dyn'][0]
+    num_row = (tot_num + num_img - 1) // num_img
+    if num_row == 1:
+        num_img = tot_num
 
-    for n in range(0, (tot_num + num_img - 1) // num_img):
+    for n in range(0, num_row):
         st = num_img * n
         ed = min(tot_num, num_img * (n + 1))
         save_name = f'c2_{n:04d}.png'
@@ -453,6 +463,12 @@ def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
     for key in list(key_map.keys())[-7:]:
         metadata[key] = info[key]
     metadata['analysis_type'] = atype
+    for k, v in metadata.items():
+        if isinstance(v, np.ndarray):
+            if v.size == 1:
+                metadata[k] = float(v)
+            else:
+                metadata[k] = str(v)
 
     with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
         json.dump(metadata, f, indent=4)
