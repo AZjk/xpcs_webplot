@@ -237,8 +237,8 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
         saxs = saxs.T
 
     mask = mask[sl_v, sl_h]
-    saxs = saxs[sl_v, sl_h]
-    dqmap = dqmap[sl_v, sl_h]
+    saxs = saxs[sl_v, sl_h] * mask
+    dqmap = dqmap[sl_v, sl_h] * mask
 
     # plot
     saxs_min = np.min(saxs[saxs > 0])
