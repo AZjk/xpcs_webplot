@@ -2,23 +2,17 @@
 
 """Tests for `xpcs_webplot` package."""
 
-import pytest
+import unittest
+from xpcs_webplot import plot_images
 
 
-from xpcs_webplot import xpcs_webplot
+class TestBoost_plot_images(unittest.TestCase):
+    """Tests for `plot_images` package."""
+
+    def test_000(self):
+        pass
 
 
-@pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
-
-
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+  
+if __name__ == '__main__':
+    unittest.main()
