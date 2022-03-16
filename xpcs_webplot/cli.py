@@ -1,6 +1,13 @@
+"""
+single hdf plot tool for globus
+"""
 from .plot_images import hdf2web_safe as hdf2web
 import argparse
+import logging
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s',
+                    datefmt='%m-%d %H:%M:%S')
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')

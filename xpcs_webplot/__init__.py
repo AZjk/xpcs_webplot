@@ -12,7 +12,4 @@ except DistributionNotFound:
 
 
 import logging
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s',
-                    datefmt='%m-%d %H:%M:%S')
-logging.getLogger('boost_corr').addHandler(logging.NullHandler())
+logging.getLogger('xpcs_webplot').addHandler(logging.NullHandler())
