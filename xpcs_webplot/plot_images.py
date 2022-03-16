@@ -11,9 +11,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .html_utlits import convert_to_html
 import logging
 import traceback
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s',
-                    datefmt='%m-%d %H:%M:%S')
 
 
 key_map = {
