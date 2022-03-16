@@ -1,20 +1,20 @@
 import glob2
 import os
-from plot_images import hdf2web_safe as hdf2web
-from plot_images import hdf2web_safe_fixed as hdf2web_fixed
-from html_utlits import combine_all_htmls
+from .plot_images import hdf2web_safe as hdf2web
+from .plot_images import hdf2web_safe_fixed as hdf2web_fixed
+from .html_utlits import combine_all_htmls
 import json
 import sys
 import datetime
 
 
 home_dir = os.path.join(os.path.expanduser('~'), '.xpcs_webplot')
-if not os.path.isdir(home_dir):
-    os.mkdir(home_dir)
 config_fname = os.path.join(home_dir, 'default_setting.json')
 
 
 def load_setting():
+    if not os.path.isdir(home_dir):
+        os.mkdir(home_dir)
     try:
         with open(config_fname, 'r') as f:
             default_setting = json.load(f)
@@ -130,31 +130,41 @@ def test_plots():
 # args = parser.parse_args()
 
 # args = vars(args)
-kwargs = load_setting()
 
-if len(sys.argv) >= 2:
-    if sys.argv[1] == 'combine_all_htmls':
-        print(datetime.datetime.now())
-        combine_all_htmls(kwargs['target_dir'])
-        sys.exit()
-    for fname in sys.argv[1:]:
-        if os.path.isfile(fname):
-            convert_one_file(fname, **kwargs)
-        elif os.path.isdir(fname):
-            convert_folder(fname, **kwargs)
-        else:
-            print('fname is not a folder or dir')
-else:
-    print('Usage: webplot fname.hdf     # plot one hdf file')
-    print('Usage: webplot folder        # plot all hdf files in the folder')
-    print('------------------------------------------------------------------')
-    choice = input('press C to combine htmls or press S to setup the directory: ').lower().strip()
-    if choice == 'c':
-        combine_all_htmls(kwargs['target_dir'])
-    elif choice == 's':
-        generate_random_dir()
-    elif choice == 't':
-        test_plots()
+def local_plot():
+    kwargs = load_setting()
+    argv = sys.argv
+
+    # patch to make it work when the args has __local__ inside it.
+    if len(argv) > 1 and argv[1] == '__local__':
+        del argv[1]
+
+    if len(argv) >= 2:
+        if argv[1] == 'combine_all_htmls':
+            print(datetime.datetime.now())
+            combine_all_htmls(kwargs['target_dir'])
+            sys.exit()
+        for fname in argv[1:]:
+            if os.path.isfile(fname):
+                convert_one_file(fname, **kwargs)
+            elif os.path.isdir(fname):
+                convert_folder(fname, **kwargs)
+            else:
+                print('fname is not a folder or dir')
     else:
-        print(f'invalid input [{choice}]. quit')
+        print('Usage: webplot fname.hdf     # plot one hdf file')
+        print('Usage: webplot folder        # plot all hdf files in the folder')
+        print('------------------------------------------------------------------')
+        choice = input('press C to combine htmls or press S to setup the directory: ').lower().strip()
+        if choice == 'c':
+            combine_all_htmls(kwargs['target_dir'])
+        elif choice == 's':
+            generate_random_dir()
+        elif choice == 't':
+            test_plots()
+        else:
+            print(f'invalid input [{choice}]. quit')
 
+
+if __name__ == '__main__':
+    local_plot()
