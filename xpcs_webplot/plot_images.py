@@ -8,7 +8,7 @@ import glob2
 import time
 import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from html_utlits import convert_to_html
+from .html_utlits import convert_to_html
 import logging
 import traceback
 logging.basicConfig(level=logging.INFO,
@@ -393,7 +393,11 @@ def reshape_static_analysis(info):
     return
 
 
-def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
+def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
+            image_only=False):
+    if fname is None:
+        logging.error(f'filename is None')
+        return
 
     t_start = time.perf_counter()
     basename = os.path.basename(fname)
@@ -474,7 +478,9 @@ def hdf2web(fname, target_dir='html', num_img=4, dpi=240, overwrite=False):
         json.dump(metadata, f, indent=4)
 
     html_dict.update({'metadata': metadata})
-    convert_to_html(save_dir, html_dict)
+    # only plot images, not to generate webpage;
+    if not image_only:
+        convert_to_html(save_dir, html_dict)
     tot_time = round(time.perf_counter() - t_start, 3)
     logging.info(f'job finished in {tot_time}s: [{basename}]')
 
