@@ -3,10 +3,14 @@ import os
 import json
 import shutil
 import sys
+# from xpcs_webplot.templates import template_path
+
+template_path = os.path.dirname(os.path.abspath(__file__))
+template_path = os.path.join(template_path, 'templates')
 
 
 def copy_minipreview(target_folder):
-    source_dir = "template/mini-preview/"
+    source_dir = os.path.join(template_path, "mini-preview/")
     flist = ['jquery.minipreview.css', 'jquery.minipreview.js']
     for f in flist:
         target_file = os.path.join(target_folder, f)
@@ -19,8 +23,9 @@ def convert_to_html(save_dir, data_dict):
     outputfile = save_dir + '.html'
     title = os.path.basename(save_dir)
 
-    subs = jinja2.Environment(loader=jinja2.FileSystemLoader(
-        './')).get_template('template/single.html').render(title=title, mydata=data_dict)
+    loader = jinja2.FileSystemLoader(template_path)
+    subs = jinja2.Environment(loader=loader).get_template(
+            'single.html').render(title=title, mydata=data_dict)
 
     # lets write the substitution to a file
     with open(outputfile, 'w') as f:
@@ -73,15 +78,14 @@ def combine_all_htmls(target_folder='html'):
                 short_label, x, v1, v2
             ])
     # html_info.sort(key=lambda x: x[2])
+    tfiles = ['combined.html',
+              'combined_preview.html',
+              'combined_iframe.html']
 
-    tfiles = ['template/combined.html',
-              'template/combined_preview.html',
-              'template/combined_iframe.html']
-
+    loader = jinja2.FileSystemLoader(template_path)
     for target, template in zip(targets, tfiles):
         subs = jinja2.Environment(
-            loader=jinja2.FileSystemLoader('./')
-        ).get_template(template).render(mydata=html_info)
+            loader=loader).get_template(template).render(mydata=html_info)
         # lets write the substitution to a file
         with open(os.path.join(target_folder, target), 'w') as f:
             f.write(subs)
