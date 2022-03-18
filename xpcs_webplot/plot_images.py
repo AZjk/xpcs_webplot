@@ -46,6 +46,43 @@ key_map = {
 }
 
 
+def rename_files(work_dir):
+    """
+    rename the png files in work_dir so that they follow the convention defined
+    in globus webportal.
+    """
+    os.chdir(work_dir)
+    all_png = os.listdir('.')
+    all_png = [x for x in all_png if x.endswith('.png')]
+
+    if 'saxs_mask.png' in all_png:
+        os.rename('saxs_mask.png', 'scattering_pattern_log.png')
+    if 'stability.png' in all_png:
+        os.rename('stability.png', 'total_intensity_vs_time.png')
+
+    # clean work_dir
+    basename_str = os.path.basename(work_dir) 
+
+    for n in range(1024):
+        g2_name = 'g2_%04d.png' % n
+        if g2_name in all_png:
+            os.rename(g2_name, 
+                basename_str + '_g2_corr_%03d_%03d.png' % (n * 9, n * 9 + 8))
+        else:
+            break
+
+    for n in range(1024):
+        g2_name = 'c2_%04d.png' % n
+        if g2_name in all_png:
+            os.rename(g2_name,
+                basename_str + '_c2_corr_%03d_%03d.png' % (n * 9, n * 9 + 8))
+        else:
+            break
+    
+    return
+
+
+
 def get(hdf_handler, key):
     if key_map[key] not in hdf_handler:
         return 'None'
@@ -475,9 +512,15 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
         json.dump(metadata, f, indent=4)
 
     html_dict.update({'metadata': metadata})
+
     # only plot images, not to generate webpage;
     if not image_only:
+        # running on local machine
         convert_to_html(save_dir, html_dict)
+    else:
+        # running on globus
+        rename_files(save_dir)
+
     tot_time = round(time.perf_counter() - t_start, 3)
     logging.info(f'job finished in {tot_time}s: [{basename}]')
 
@@ -544,5 +587,6 @@ def test_parallel():
 
 
 if __name__ == '__main__':
-    test_plots()
+    # test_plots()
     # test_parallel()
+    rename_files('/clhome/MQICHU/html/A056_Ludox15_att00_L2M_quiescent_001_0001-0300')
