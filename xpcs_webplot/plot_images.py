@@ -428,7 +428,13 @@ def reshape_static_analysis(info):
 
 
 def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
-            image_only=False):
+            image_only=False, create_image_directory=True):
+    """
+    create_image_directory: whether to create a image directory based on the
+    hdf filename. It's useful when plot multiples of hdf files and use the
+    same target_dir, so that the images won't be overwritten. If target_dir is
+    absolute, then create_image_directory can be set to False.
+    """
     if fname is None:
         logging.error(f'filename is None')
         return
@@ -440,23 +446,23 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
         logging.error(f'file not exists: [{basename}]')
         return
 
-    if not os.path.isdir(target_dir):
-        logging.error(f'target dir not exists: [{target_dir}]')
-        return
-
     save_dir_rel = os.path.splitext(basename)[0]
     if not overwrite and check_exist(basename, target_dir):
         logging.info(f'job skip to avoid overwrite: [{basename}]')
         return
 
     atype = get_anaylsis_type(fname)
-    if atype not in ['Twotime', 'Multitau']:
+    if atype not in ['Twotime', 'Multitau', 'Both']:
         logging.error(f'file type error: [{basename}]')
         return
 
-    save_dir = os.path.join(target_dir, save_dir_rel)
+    if create_image_directory:
+        save_dir = os.path.join(target_dir, save_dir_rel)
+    else:
+        save_dir = target_dir
+
     if not os.path.isdir(save_dir):
-        os.mkdir(save_dir)
+        os.makedirs(save_dir)
     info = {}
 
     with h5py.File(fname, 'r') as f:
@@ -550,7 +556,7 @@ def convert_many_files(flist, num_workers=24, target_dir='html', **kwargs):
 
 
 def test_plots():
-    target_dir = 'html'
+    target_dir = '/tmp/html'
     # twotime
     fname = '/net/wolf/data/xpcs8/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
     # fname = '/home/8ididata/2021-3/xmlin202112/cluster_results/E005_SiO2_111921_Exp1_IntriDyn_Pos1_XPCS_00_att02_Lq1_001_0001-0522_Twotime.hdf'
@@ -561,7 +567,7 @@ def test_plots():
 
     fname = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results/E121_SiO2_111921_270nm_62v_Exp3_PostPreshear_Preshear0p01_XPCS_01_007_att02_Lq1_001_0001-0500_Twotime.hdf'
     # fname = "/home/8ididata/2021-3/foster202110/cluster_results/B985_2_10k_star_dynamic_0p1Hz_Strain1.05mm_Ampl0.040mm_att5_Lq0_001_0001-0800.hdf"
-    hdf2web(fname, target_dir=target_dir)
+    hdf2web(fname, target_dir=target_dir, create_image_directory=False)
 
     # fname = "/net/wolf/data/xpcs8/2021-3/tingxu202111/cluster_results_01_27/F2250_D100_025C_att00_Rq0_00001_0001-100000.hdf"
     fname = "/data/xpcs8/2022-1/bates202202/cluster_results_RealTime/I039_B2b2_A180_150C_att03_001_0001-1000.hdf"
