@@ -8,7 +8,6 @@ def make_corr_plots(**data):
     from xpcs_webplot.plot_images import hdf2web_safe
     from xpcs_webplot import __version__ as webplot_version
 
-
     log_file = os.path.join(data['proc_dir'], 'webplot.log')
 
     handlers = (
@@ -22,39 +21,24 @@ def make_corr_plots(**data):
     if not os.path.exists(data['proc_dir']):
         raise NameError(f'{data["proc_dir"]} \n Proc dir does not exist!')
 
-    img_dir = os.path.join(data['proc_dir'], os.path.dirname(data['hdf_file']))
-    os.chdir(img_dir)
-    try:
-        h5filename = os.path.join(data['proc_dir'], data['hdf_file'])
-        hdf2web_safe(h5filename, target_dir=data['proc_dir'],
-                     images_only=True)
-    except (Exception, SystemExit) as e:
-        return str(e)
-    
+    # img_dir = os.path.join(data['proc_dir'], os.path.dirname(data['hdf_file']))
+    h5filename = os.path.join(data['proc_dir'], data['hdf_file'])
+    hdf2web_safe(h5filename, target_dir=data['proc_dir'],
+                 images_only=True, create_image_directory=False)
+
     metadata = {
-        'executable' : {
+        'executable': {
             'name': 'xpcs_webplot',
             'tool_version': str(webplot_version),
             'source': 'https://github.com/AZjk/xpcs_webplot',
-            }
+        }
     }
 
     if data.get('execution_metadata_file'):
         with open(data['execution_metadata_file'], 'w') as f:
             f.write(json.dumps(metadata, indent=2))
 
-    # logs = []
-    # if os.path.exists(log_file):
-    #     with open(log_file) as f:
-    #         logs = f.readlines()
-
-    # return {
-    #     'result': 'SUCCESS',
-    #     # 'boost_corr_log': logs,
-    #     'proc_dir': data['proc_dir'],
-    #     'xpcs_webplot': data['xpcs_webplot'],
-    # }
-    return [img for img in os.listdir(img_dir) if img.endswith('.png')]
+    return [img for img in os.listdir(data['proc_dir']) if img.endswith('.png')]
 
 
 @generate_flow_definition(modifiers={
@@ -72,7 +56,8 @@ class MakeCorrPlots(GladierBaseTool):
 
 
 if __name__ == '__main__':
-    import sys, pathlib
+    import sys
+    import pathlib
     if len(sys.argv) != 2:
         print('Usage: python plot.py my_file.hdf')
     input_file = pathlib.Path(sys.argv[1]).absolute()
@@ -80,4 +65,5 @@ if __name__ == '__main__':
     # * Top level proc_dir/
     #     * HDF_Folder/
     #         * HDF_File.hdf
-    make_corr_plots(proc_dir=str(input_file.parent.parent), hdf_file=str(input_file))
+    make_corr_plots(proc_dir=str(input_file.parent.parent),
+                    hdf_file=str(input_file))
