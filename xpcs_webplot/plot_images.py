@@ -70,12 +70,14 @@ def rename_files(work_dir):
                 basename_str + '_g2_corr_%03d_%03d.png' % (n * 9, n * 9 + 8))
         else:
             break
-
+    
+    offset = n
     for n in range(1024):
         g2_name = 'c2_%04d.png' % n
         if g2_name in all_png:
+            m = n + offset
             os.rename(g2_name,
-                basename_str + '_c2_corr_%03d_%03d.png' % (n * 9, n * 9 + 8))
+                basename_str + '_g2_corr_%03d_%03d.png' % (m * 9, m * 9 + 8))
         else:
             break
     
