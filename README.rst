@@ -42,6 +42,9 @@ Run webplot in the background
 
     this will run the command ``webplot combine_all_htmls`` every ``120`` seconds.
 
+* exit screen by press ``CTRL + A``, then press ``d``. Now you are safe to terminate the ssh session. webplot will be running in the background.
+       
+
 Credits
 -------
 
