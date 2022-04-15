@@ -23,6 +23,23 @@ Python Boilerplate contains all the boilerplate you need to create a Python pack
 * Documentation: https://xpcs-webplot.readthedocs.io.
 
 
+Start Nginx web server
+-------
+
+* login axinite as 8idiuer
+    ``ssh 8idiuser@axinite.xray.aps.anl.gov -Y``
+
+* check if Nginx is running
+     ``docker container ls | grep nginx``
+
+* stop Nginx if you want to switch to a new html folder
+     ``docker stop webplothttp``
+ 
+* start a new Nginx server, replace CYCLE with the correct values,
+    ``docker run --rm --name webplothttp -v /net/wolf/data/xpcs8/CYCLE/html:/usr/share/nginx/html:ro -p 80:80 -d nginx``
+    
+
+
 Run webplot in the background
 -------
 
