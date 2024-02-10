@@ -1,4 +1,4 @@
-import glob2
+import glob
 import os
 from .plot_images import hdf2web_safe as hdf2web
 from .plot_images import hdf2web_safe_fixed as hdf2web_fixed
@@ -52,7 +52,7 @@ def convert_many_files(flist, num_workers=24, **kwargs):
 def convert_folder(folder, **kwargs):
     if os.path.isdir(folder):
         folder = folder.rstrip('/')
-        flist = glob2.glob(folder + '/*.hdf')
+        flist = glob.glob(folder + '/*.hdf')
         flist.sort()
         convert_many_files(flist, **kwargs)
 
