@@ -54,7 +54,7 @@ key = {
     "sqmap": "/xpcs/sqmap",
     "mask": "/xpcs/mask",
     "type": "/xpcs/analysis_type",
-    "t0": "/entry/instrument/bluesky/metadata/acquire_time",
+    "t0": "/entry/instrument/bluesky/metadata/acquire_period",
     "t1": "/entry/instrument/bluesky/metadata/acquire_time",
     "tau": "/exchange/tau",
     "g2": "/exchange/norm-0-g2",
