@@ -25,14 +25,19 @@ def globus_plot():
 
     parser.add_argument('--dpi', type=int, nargs='?', default=240,
                         help=('dpi controls the image resolution.'
-                              'For 4K/3840px, dpi is 240'))
+                              'For 4K monitors, dpi can be set to 240 to '
+                              'produce images with 3840 horizontal pixels.'))
 
     parser.add_argument('--overwrite', type=bool, nargs='?',
                         default=True, help='overwrite flag')
 
+    # parser.add_argument('--backend', type=str, default='matplotlib',
+    #                     help='backend to use for the plotting.')
+
     kargs = vars(parser.parse_args())
     fname = kargs.pop('fname')
-    hdf2web(fname, image_only=True, **kargs)
+    # hdf2web(fname, image_only=True, **kargs)
+    hdf2web(fname, image_only=False, **kargs)
 
 
 def main():

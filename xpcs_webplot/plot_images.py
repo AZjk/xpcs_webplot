@@ -4,46 +4,16 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 from multiprocessing import Pool
-import glob2
+import glob
 import time
 import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .html_utlits import convert_to_html
 import logging
 import traceback
+from .aps_8idi import key as key_map
 
-
-key_map = {
-    "saxs_1d": "/exchange/partition-mean-total",
-    "Iqp": "/exchange/partition-mean-partial",
-    "ql_sta": "/xpcs/sqlist",
-    "ql_dyn": "/xpcs/dqlist",
-    "dqmap": "/xpcs/dqmap",
-    "sqmap": "/xpcs/sqmap",
-    "mask": "/xpcs/mask",
-    "type": "/xpcs/analysis_type",
-    "t0": "/measurement/instrument/detector/exposure_period",
-    "t1": "/measurement/instrument/detector/exposure_time",
-    "tau": "/exchange/tau",
-    "g2": "/exchange/norm-0-g2",
-    "g2_err": "/exchange/norm-0-stderr",
-    "saxs_2d": "/exchange/pixelSum",
-    "Int_t": "/exchange/frameSum",
-    "avg_frames": "/xpcs/avg_frames",
-    "stride_frames": "/xpcs/stride_frames",
-    "sphilist": "/xpcs/sphilist",
-    "snophi": "xpcs/snophi",
-    "snoq": "xpcs/snoq",
-    "dnophi": "xpcs/dnophi",
-    "dnoq": "xpcs/dnoq",
-    "t_begin": "/measurement/instrument/source_begin/datetime",
-    "t_end": "/measurement/instrument/source_end/datetime",
-    "temperature_a_rbv": "/measurement/sample/temperature_A",
-    "temperature_a_set": "/measurement/sample/temperature_A_set",
-    "temperature_b_rbv": "/measurement/sample/temperature_B",
-    "temperature_b_set": "/measurement/sample/temperature_B_set",
-    "current": "/measurement/instrument/source_begin/current",
-}
+key_map = key_map['nexus']
 
 
 def rename_files(work_dir):
@@ -505,19 +475,29 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
         raise NotImplementedError
 
     html_dict.update(img_description)
+
+    # prepare metadata
     metadata = {}
-    for key in list(key_map.keys())[-7:]:
-        metadata[key] = info[key]
-    metadata['analysis_type'] = atype
-    for k, v in metadata.items():
-        if isinstance(v, np.ndarray):
-            if v.size == 1:
-                metadata[k] = float(v)
-            else:
-                metadata[k] = str(v)
+    with h5py.File(fname, 'r') as f:
+        dset = f['/entry/instrument/bluesky/metadata']
+        for key in dset:
+            value = dset[key][()]
+            if isinstance(value, (np.integer, np.floating, np.ndarray, str, float, int)):
+                metadata[key] = value
+
+    # serialization for numpy array
+    class NpEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return super(NpEncoder, self).default(obj)
 
     with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
-        json.dump(metadata, f, indent=4)
+        json.dump(metadata, f, indent=4, cls=NpEncoder)
 
     html_dict.update({'metadata': metadata})
 
@@ -582,7 +562,7 @@ def test_parallel():
     # prefix = '/home/8ididata/2021-3/xmlin202112/cluster_results'
     prefix = '/net/wolf/data/xpcs8//2021-3/xmlin202112/cluster_results'
     # prefix = '/home/8ididata/2021-3/foster202110/cluster_results'
-    flist = glob2.glob(prefix + '/*.hdf')
+    flist = glob.glob(prefix + '/*.hdf')
     flist.sort()
     # flist_twotime = [x for x in flist if 'Twotime' in x]
     # for f in flist_twotime:
