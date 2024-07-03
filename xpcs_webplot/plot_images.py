@@ -482,7 +482,10 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
         dset = f['/entry/instrument/bluesky/metadata']
         for key in dset:
             value = dset[key][()]
-            if isinstance(value, (np.integer, np.floating, np.ndarray, str, float, int)):
+            if isinstance(value, bytes):
+                value = value.decode()
+            if isinstance(value, (np.integer, np.floating, np.ndarray,
+                                  str, float, int)):
                 metadata[key] = value
 
     # serialization for numpy array
