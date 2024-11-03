@@ -13,6 +13,7 @@ import logging
 import traceback
 from .aps_8idi import key as key_map
 
+logger = logging.getLogger(__name__)
 key_map = key_map['nexus']
 
 
@@ -57,16 +58,17 @@ def rename_files(work_dir):
 
 def get(hdf_handler, key):
     if key_map[key] not in hdf_handler:
+        logger.warning(f'{key}/{key_map[key]} does not exist in the hdf file')
+        logger.error(f'{key}/{key_map[key]} does not exist in the hdf file')
         return 'None'
-    val = hdf_handler.get(key_map[key])[()]
+    if key == 'c2_half':
+        val = hdf_handler.get(key_map[key])
+    else:
+        val = hdf_handler.get(key_map[key])[()]
+
     if type(val) in [np.bytes_, bytes]:
         val = val.decode()
-    # if isinstance(val, np.ndarray) and key not in ['sphilist', 'ql_sta',]:
-    #     if val.size == 1:
-    #         print(key)
-    #         val = float(val)
-    #         if abs(val) > 1e-2:
-    #             val = round(val, 4)
+
     return val
 
 
@@ -399,6 +401,18 @@ def reshape_static_analysis(info):
     return
 
 
+# serialization for numpy array
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
+
+
 def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
             image_only=False, create_image_directory=True):
     """
@@ -407,44 +421,40 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
     same target_dir, so that the images won't be overwritten. If target_dir is
     absolute, then create_image_directory can be set to False.
     """
-    if fname is None:
-        logging.error(f'filename is None')
-        return
-
     t_start = time.perf_counter()
+    if fname is None or not os.path.isfile(fname):
+        logger.error(f'check {fname}')
+        return False
+
     basename = os.path.basename(fname)
-
-    if not os.path.isfile(fname):
-        logging.error(f'file not exists: [{basename}]')
-        return
-
     save_dir_rel = os.path.splitext(basename)[0]
-    if not overwrite and check_exist(basename, target_dir):
-        logging.info(f'job skip to avoid overwrite: [{basename}]')
-        return
-
-    atype = get_anaylsis_type(fname)
-    if atype not in ['Twotime', 'Multitau', 'Both']:
-        logging.error(f'file type error: [{basename}]')
-        return
-
     if create_image_directory:
         save_dir = os.path.join(target_dir, save_dir_rel)
     else:
         save_dir = target_dir
 
+    if not overwrite and os.path.isdir(save_dir):
+        logger.info(f'skip job to avoid overwrite: [{basename}]')
+        return False
+
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-    info = {}
 
+    atype = get_anaylsis_type(fname)
+    if atype not in ['Twotime', 'Multitau', 'Both']:
+        logger.error(f'file type error: [{basename}]')
+        return False
+
+    info = {}
     with h5py.File(fname, 'r') as f:
         for key in key_map.keys():
             if atype == 'Twotime' and key in ['g2', 'g2_err', 'tau']:
                 continue
+            if atype == 'Mulitau' and key in ['c2_half']:
+                continue
             info[key] = get(f, key)
 
-        
-    delta_t = info['t0'] * info['avg_frames'] * info['stride_frames']
+    delta_t = info['t1'] * info['avg_frames'] * info['stride_frames']
     if atype == 'Multitau':
         info['t_el'] = delta_t * info['tau']
 
@@ -477,27 +487,20 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
     html_dict.update(img_description)
 
     # prepare metadata
-    metadata = {}
+    skip_keys = ['metadatafile']
+    metadata = {'analysis_type': atype}
     with h5py.File(fname, 'r') as f:
         dset = f['/entry/instrument/bluesky/metadata']
         for key in dset:
+            if key in skip_keys:
+                continue
             value = dset[key][()]
             if isinstance(value, bytes):
                 value = value.decode()
             if isinstance(value, (np.integer, np.floating, np.ndarray,
                                   str, float, int)):
                 metadata[key] = value
-
-    # serialization for numpy array
-    class NpEncoder(json.JSONEncoder):
-        def default(self, obj):
-            if isinstance(obj, np.integer):
-                return int(obj)
-            if isinstance(obj, np.floating):
-                return float(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            return super(NpEncoder, self).default(obj)
+        metadata['start_time'] =  f["/entry/start_time"][()].decode()
 
     with open(os.path.join(save_dir, 'metadata.json'), 'w') as f:
         json.dump(metadata, f, indent=4, cls=NpEncoder)
@@ -513,7 +516,8 @@ def hdf2web(fname=None, target_dir='html', num_img=4, dpi=240, overwrite=False,
         rename_files(save_dir)
 
     tot_time = round(time.perf_counter() - t_start, 3)
-    logging.info(f'job finished in {tot_time}s: [{basename}]')
+    logger.info(f'job finished in {tot_time}s: [{basename}]')
+    return True
 
 
 def hdf2web_safe(*args, **kwargs):
@@ -521,7 +525,7 @@ def hdf2web_safe(*args, **kwargs):
         x = hdf2web(*args, **kwargs)
     except Exception:
         basename = os.path.basename(args[0])
-        logging.info(f'job failed: [{basename}]')
+        logger.info(f'job failed: [{basename}]')
         traceback.print_exc()
     else:
         return x
