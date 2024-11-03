@@ -3,7 +3,10 @@ import os
 import json
 import shutil
 import sys
-# from xpcs_webplot.templates import template_path
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 template_path = os.path.dirname(os.path.abspath(__file__))
 template_path = os.path.join(template_path, 'templates')
@@ -57,9 +60,6 @@ def combine_all_htmls(target_folder='html'):
     files = os.listdir(target_folder)
     htmls = [x for x in files if x.endswith('.html')]
     htmls.sort()
-    # key=lambda x: os.path.getmtime(x)
-    # print("sort by time")
-    # htmls.sort(key=lambda x: os.path.getmtime(os.path.join(target_folder, x))) 
 
     html_info = []
     for x in htmls:
@@ -70,8 +70,9 @@ def combine_all_htmls(target_folder='html'):
         try:
             with open(json_fname, 'r') as f:
                 meta = json.load(f)
-                v1, v2 = meta['analysis_type'], meta['t_begin']
-        except Exception:
+                v1, v2 = meta['analysis_type'], meta['start_time']
+        except Exception as e:
+            logger.error(str(e))
             pass
         else:
             html_info.append([
@@ -92,9 +93,8 @@ def combine_all_htmls(target_folder='html'):
 
     copy_minipreview(target_folder)
     basename = os.path.basename(target_folder)
-    print(f'hdf files combined: [{target_folder}]')
-    print(f'--total number of files: [{len(html_info)}]')
-    print(f'--open link http://164.54.100.176/{basename}')
+    logger.info(f'hdf files combined: [{target_folder}]')
+    logger.info(f'--total number of files: [{len(html_info)}]')
 
 
 if __name__ == '__main__':
