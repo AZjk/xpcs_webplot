@@ -3,7 +3,7 @@ import logging
 import sys
 import os
 import glob
-from .webplot_cli import combine_all_htmls, convert_one_file
+from .webplot_cli import combine_all_htmls, convert_one_file, convert_many_files 
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import socket
 import time
@@ -73,7 +73,7 @@ def main():
                               help='overwrite flag')
 
     plot_command.add_argument('--combinetime', type=str, choices=['never', 'end', 'each'],
-                              default='never',
+                              default='each',
                               help='choose when to combine the newly plotted html with the index html')
 
     plot_command.add_argument('--monitor_interval_seconds', type=int, default=30,
@@ -108,20 +108,23 @@ def main():
         # a directory rather than a single file
         else:
             t0 = time.time()
-            flist = glob.glob(os.path.join(fname, '*.hdf'))
-            flist.sort(key=os.path.getctime)
             while True:
-                if combinetime == 'each':
-                    for f in flist:
-                        if convert_one_file(f, **kwargs):
-                            combine_all_htmls(kwargs['target_dir'])
-                else:
-                    # it is 'never' or 'end'
-                    flag = False
-                    for f in flist:
-                        flag = flag or convert_one_file(f, **kwargs)
-                    if flag:
-                        combine_all_htmls(kwargs['target_dir'])
+                flist = glob.glob(os.path.join(fname, '*.hdf'))
+                flist.sort(key=os.path.getctime)
+                convert_many_files(flist, num_workers=4, **kwargs)
+                combine_all_htmls(kwargs['target_dir'])
+
+                # if combinetime == 'each':
+                #     for f in flist:
+                #         if convert_one_file(f, **kwargs):
+                #             combine_all_htmls(kwargs['target_dir'])
+                # else:
+                #     # it is 'never' or 'end'
+                #     flag = False
+                #     for f in flist:
+                #         flag = flag or convert_one_file(f, **kwargs)
+                #     if flag:
+                #         combine_all_htmls(kwargs['target_dir'])
                 logger.info(f'check new files in {monito_interval_seconds} seconds')
                 time.sleep(monito_interval_seconds)
                 t1 = time.time()
@@ -132,7 +135,7 @@ def main():
     elif command == 'combine':
         combine_all_htmls(kwargs['target_dir'])
     elif command == 'serve':
-        run_server(kwargs['port'])
+        run_server(kwargs['target_dir'], kwargs['port'])
     else:
         parser.print_help()
 
