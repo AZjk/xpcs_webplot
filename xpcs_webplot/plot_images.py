@@ -388,8 +388,12 @@ def reshape_static_analysis(info):
         Iqp = info['Iqp']
         x = np.zeros((Iqp.shape[0], size), dtype=np.float32)
         for n in range(Iqp.shape[0]):
-            x[n, ~nan_idx] = Iqp[n]
-            x[n, nan_idx] = np.nan
+            if np.sum(~nan_idx) == len(Iqp[n]):
+                x[n, ~nan_idx] = Iqp[n]
+                x[n, nan_idx] = np.nan
+            else:
+                x[n, 0:len(Iqp[n])] = Iqp[n]
+                x[n, len(Iqp[n]):] = np.nan
         x = x.reshape(Iqp.shape[0], *shape)
 
         # average the phi dimension
