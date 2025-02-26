@@ -111,7 +111,7 @@ def main():
             while True:
                 flist = glob.glob(os.path.join(fname, '*.hdf'))
                 flist.sort(key=os.path.getctime)
-                convert_many_files(flist, num_workers=4, **kwargs)
+                convert_many_files(flist, num_workers=8, **kwargs)
                 combine_all_htmls(kwargs['target_dir'])
 
                 # if combinetime == 'each':

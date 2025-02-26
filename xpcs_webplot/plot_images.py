@@ -1,6 +1,9 @@
 import numpy as np
 import h5py
 import os
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 from multiprocessing import Pool
@@ -235,7 +238,6 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     fig, ax = plt.subplots(1, 2, figsize=figsize)
     if saxs.ndim == 3:
         saxs = np.squeeze(saxs)
-
     nonzero = np.nonzero(mask)
     sl_v = slice(np.min(nonzero[0]), np.max(nonzero[0]) + 1)
     sl_h = slice(np.min(nonzero[1]), np.max(nonzero[1]) + 1)
