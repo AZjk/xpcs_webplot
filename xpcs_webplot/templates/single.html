@@ -77,43 +77,65 @@
       <div class="right-links">
         <a class="links" href="#scattering">Scattering</a>
         <a class="links" href="#stability">Stability</a>
-        <a class="links" href="#correlation">Correlation</a>
+        <a class="links" href="#correlation-g2">Correlation-g2</a>
+        <a class="links" href="#correlation-c2">Correlation-c2</a>
         <a class="links" href="#metadata">Metadata</a>
       </div>
     </nav>
 
 
-    <div id='scattering'>
-      <img id="{{mydata['scattering']}}" src="{{mydata['scattering']}}" width="100%" height="auto">
+    <div id="scattering">
+      <img id="{{ mydata['scattering'] }}" src="{{ mydata['scattering'] }}" width="100%" height="auto">
     </div>
 
-    <div, id='stability'>
-      <img id="{{mydata['stability']}}" src="{{mydata['stability']}}" width="100%" height="auto">
-      </div>
+    <div id="stability">
+      <img id="{{ mydata['stability'] }}" src="{{ mydata['stability'] }}" width="100%" height="auto">
+    </div>
 
-      <div, id='correlation'>
-        {% for key in mydata['correlation'] %}
-        <img id="{{key}}" src="{{key}}" width="100%" height="auto">
-        {% endfor %}
-        </div>
+   <div id="correlation-g2">
+     {% for key in mydata["correlation_g2"] %}
+     <img id="{{key}}" src="{{key}}" width="100%" height="auto">
+     {% endfor %}
+     </div>
+    
 
-        <div, id='metadata' class='styled-table'>
-          <table>
-            <tr>
-              <th> key </th>
-              <th> value </th>
-            </tr>
-            {% for key, val in mydata['metadata'].items() %}
-            <tr>
-              <td> {{key}} </td>
-              <td> {{val}} </td>
-            </tr>
-            {% endfor %}
-          </table>
-          </div>
+   <div id="correlation-c2">
+     {% for key in mydata["correlation_c2"] %}
+     <img id="{{key}}" src="{{key}}" width="100%" height="auto">
+     {% endfor %}
+     </div>
 
-
+    <div id="metadata" class="styled-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key, val in mydata['metadata'].items() %}
+          <tr>
+            <td>{{ key }}</td>
+            <td>
+              {% if val is mapping %}  {# Check if value is a nested dictionary #}
+                <table>
+                  {% for sub_key, sub_val in val.items() %}
+                  <tr>
+                    <td><b>{{ sub_key }}</b></td>
+                    <td>{{ sub_val }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              {% else %}
+                {{ val }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
   </body>
-
 </html>
