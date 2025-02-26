@@ -2,6 +2,8 @@
 <html>
 
 <head>
+  <meta charset="UTF-8">
+  <title>File Table</title>
   <style>
     body {
       margin: 0px;
@@ -31,91 +33,112 @@
     th {
       background-color: #1bc0dd;
       color: white;
-      font-size: 18px
+      font-size: 18px;
     }
   </style>
+</head>
 
-  <head>
+<body>
 
-  <body>
+  <div class="styled-table">
+    <table id="filetable">
+      <tr>
+        <th> Filename </th>
+        <th> Analysis Type </th>
+        <th> Start Time </th>
+        <th> Plot Time </th>
+      </tr>
+      <tr>
+        <td>
+          <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for filename.."
+            title="Type in a filename" size="50">
+        </td>
+        <td>
+          <input type="text" id="type_str" onkeyup="filter_type()" placeholder="Search for type.."
+            title="Type in an analysis type">
+        </td>
+        <td>
+          <input type="datetime-local" id="start_time_str" oninput="filter_start_time()" title="Filter by Start Time">
+        </td>
+        <td>
+          <input type="datetime-local" id="plot_time_str" oninput="filter_plot_time()" title="Filter by Plot Time">
+        </td>
+      </tr>
 
+      {% for line in mydata %}
+      <tr>
+        <td> <a href="{{ line[1] | urlencode }}"> {{ line[0] }} </a> </td>
+        <td> {{ line[2] }} </td>
+        <td> {{ line[3] }} </td>  <!-- Start Time (with HH:MM:SS) -->
+        <td> {{ line[4] }} </td>  <!-- Plot Time (with HH:MM:SS) -->
+      </tr>
+      {% endfor %}
 
-    <div, id='filetable' class='styled-table'>
-      <table>
-        <tr>
-          <th> Filename </th>
-          <th> Analysis Type </th>
-          <th> Date </th>
-        </tr>
-        <tr>
-          <td>
-            <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for fname.."
-              title="Type in a fname" size="100">
-          </td>
-          <td>
-            <input type="text" id="type_str" onkeyup="filter_type()" placeholder="Search for type.."
-              title="Type in a type">
-          </td>
-          <td>
-            <input type="date" id="time_str" title="Type in a name">
-          </td>
-        </tr>
-        <!--
-        <input type="time" id="time_str" onkeyup="filter_fname()" placeholder="Search for names.."
--->
-        {% for line in mydata %}
-        <tr>
-          <td> <a href={{line[1]}}> {{line[0]}} </a>
-          </td>
-          <td> {{line[2]}} </td>
-          <td> {{line[3]}} </td>
-        </tr>
-        {% endfor %}
-      </table>
-      </div>
+    </table>
+  </div>
 
-
-      <script>
-        function filter_fname() {
-          var input, filter, table, tr, td, i, txtValue;
-          input = document.getElementById("fname_str");
-          filter = input.value.toUpperCase();
-          table = document.getElementById("filetable");
-          tr = table.getElementsByTagName("tr");
-          for (i = 2; i < tr.length; i++) {
-            td = tr[i].getElementsByTagName("td")[0];
-            if (td) {
-              txtValue = td.textContent || td.innerText;
-              if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                tr[i].style.display = "";
-              } else {
-                tr[i].style.display = "none";
-              }
-            }
-          }
+  <script>
+    function filter_fname() {
+      var input, filter, table, tr, td, i, txtValue;
+      input = document.getElementById("fname_str");
+      filter = input.value.toUpperCase();
+      table = document.getElementById("filetable");
+      tr = table.getElementsByTagName("tr");
+      for (i = 2; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td")[0];
+        if (td) {
+          txtValue = td.textContent || td.innerText;
+          tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
         }
+      }
+    }
 
-        function filter_type() {
-          var input, filter, table, tr, td, i, txtValue;
-          input = document.getElementById("type_str");
-          filter = input.value.toUpperCase();
-          table = document.getElementById("filetable");
-          tr = table.getElementsByTagName("tr");
-          for (i = 2; i < tr.length; i++) {
-            td = tr[i].getElementsByTagName("td")[1];
-            if (td) {
-              txtValue = td.textContent || td.innerText;
-              if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                tr[i].style.display = "";
-              } else {
-                tr[i].style.display = "none";
-              }
-            }
-          }
+    function filter_type() {
+      var input, filter, table, tr, td, i, txtValue;
+      input = document.getElementById("type_str");
+      filter = input.value.toUpperCase();
+      table = document.getElementById("filetable");
+      tr = table.getElementsByTagName("tr");
+      for (i = 2; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td")[1];
+        if (td) {
+          txtValue = td.textContent || td.innerText;
+          tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
         }
+      }
+    }
 
-      </script>
+    function filter_start_time() {
+      var input, filter, table, tr, td, i, txtValue;
+      input = document.getElementById("start_time_str");
+      filter = input.value.replace("T", " "); // Convert "YYYY-MM-DDTHH:MM" to "YYYY-MM-DD HH:MM"
+      table = document.getElementById("filetable");
+      tr = table.getElementsByTagName("tr");
+      for (i = 2; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td")[2];  // Start Time Column
+        if (td) {
+          txtValue = td.textContent || td.innerText;
+          tr[i].style.display = txtValue.includes(filter) ? "" : "none";
+        }
+      }
+    }
 
-  </body>
+    function filter_plot_time() {
+      var input, filter, table, tr, td, i, txtValue;
+      input = document.getElementById("plot_time_str");
+      filter = input.value.replace("T", " "); // Convert "YYYY-MM-DDTHH:MM" to "YYYY-MM-DD HH:MM"
+      table = document.getElementById("filetable");
+      tr = table.getElementsByTagName("tr");
+      for (i = 2; i < tr.length; i++) {
+        td = tr[i].getElementsByTagName("td")[3];  // Plot Time Column
+        if (td) {
+          txtValue = td.textContent || td.innerText;
+          tr[i].style.display = txtValue.includes(filter) ? "" : "none";
+        }
+      }
+    }
+  </script>
+
+</body>
 
 </html>
