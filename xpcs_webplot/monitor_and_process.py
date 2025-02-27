@@ -68,7 +68,7 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
     logger.info(f"[Consumer-{consumer_id}] Stop flag set. Exiting.")
 
 
-def monitor_and_process(folder_path, num_consumers=3, max_running_time=3600, **analysis_kwargs):
+def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **analysis_kwargs):
     """ Main function to monitor a folder and process HDF5 files with a time limit. """
 
     start_time = time.time()
@@ -86,7 +86,7 @@ def monitor_and_process(folder_path, num_consumers=3, max_running_time=3600, **a
 
     # Start Consumer Processes
     consumer_processes = []
-    for i in range(num_consumers):
+    for i in range(num_workers):
         p = multiprocessing.Process(
             target=consumer, args=(
                 i, task_queue, stop_flag), kwargs=analysis_kwargs
@@ -110,7 +110,7 @@ def monitor_and_process(folder_path, num_consumers=3, max_running_time=3600, **a
     producer_process.join()
 
     # Stop Consumers
-    for _ in range(num_consumers):
+    for _ in range(num_workers):
         task_queue.put(None)  # Send stop signal
 
     for p in consumer_processes:

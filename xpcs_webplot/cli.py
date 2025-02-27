@@ -102,7 +102,7 @@ def main():
         monitor = kwargs.pop("monitor", False)
         # a single file
         if os.path.isfile(fname):
-            num_workers = kwargs.pop("num_workers", None)
+            kwargs.pop("num_workers", None)
             convert_one_file(fname, **kwargs)
             combine_all_htmls(kwargs["target_dir"])
         # a directory rather than a single file
@@ -112,6 +112,7 @@ def main():
                 if len(flist) == 0:
                     logger.error(f"No hdf files found in {fname}")
                     return
+                kwargs.pop('max_running_time')
                 convert_many_files(flist, **kwargs)
                 combine_all_htmls(kwargs["target_dir"])
             else:
