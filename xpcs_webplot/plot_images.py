@@ -420,8 +420,8 @@ def hdf2web_safe(*args, **kwargs):
         return x
 
 
-def hdf2web_safe_fixed(args, kwargs):
-    # print(args, kwargs)
+def hdf2web_safe_wrap(args, kwargs):
+    # needed for multiprocessing.starmap
     return hdf2web_safe(*args, **kwargs)
 
 

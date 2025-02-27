@@ -1,6 +1,6 @@
 import glob
 import os
-from .plot_images import hdf2web_safe as hdf2web
+from .plot_images import hdf2web_safe as hdf2web, hdf2web_safe_wrap
 import logging
 
 logger = logging.getLogger(__name__)
@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 def convert_many_files(flist, num_workers=24, **kwargs):
     assert isinstance(flist, list)
-
     tot_num = len(flist)
 
     # wrap the args and kwargs in two list to pass to starmap
@@ -18,7 +17,7 @@ def convert_many_files(flist, num_workers=24, **kwargs):
 
     from multiprocessing import Pool
     p = Pool(min(num_workers, tot_num))
-    p.starmap(hdf2web, full_input)
+    p.starmap(hdf2web_safe_wrap, full_input)
 
 
 def convert_folder(folder, **kwargs):
