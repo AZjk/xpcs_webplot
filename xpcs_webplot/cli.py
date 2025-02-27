@@ -7,8 +7,9 @@ from .webplot_cli import convert_one_file, convert_many_files
 from .html_utlits import combine_all_htmls
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import socket
-import time
 from functools import partial
+from .monitor_and_process import monitor_and_process
+
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s",
@@ -73,14 +74,13 @@ def main():
     plot_command.add_argument("--overwrite", action="store_true",
                               help="overwrite flag")
 
-    plot_command.add_argument("--combinetime", type=str, choices=["never", "end", "each"],
-                              default="each",
-                              help="choose when to combine the newly plotted html with the index html")
+    plot_command.add_argument("--monitor", action="store_true",
+                              help="whether to monitor the folder for new files")
 
-    plot_command.add_argument("--monitor_interval_seconds", type=int, default=30,
-                             help="""if plotting a folder, you can choose to
-                             keep monitoring the folder every monito_interval_seconds 
-                             for the new files and plotting them. """)
+    plot_command.add_argument("--num-workers", type=int, default=8,
+                              help="whether to monitor the folder for new files")
+    plot_command.add_argument("--max-running-time", type=int, default=86400 * 7,
+                              help="maximum running time in seconds")
     
     combine_command = subparsers.add_parser("combine", help="combine htmls in one")
     combine_command.add_argument("target_dir", type=str, nargs="?",
@@ -92,46 +92,33 @@ def main():
     serve_command.add_argument("--port", type=int, help="port to run the http server",
                               default=8081)
     
-    args = parser.parse_args()
     kwargs = vars(parser.parse_args())
     logger.info("|".join([f"{k}:{v}" for k, v in kwargs.items()]))
+
     command = kwargs.pop("command", None)
 
-    max_running_time = 3600 * 24 * 7    # 7 days
     if command == "plot":
         fname = kwargs.pop("fname")
-        combinetime = kwargs.pop("combinetime")
-        monito_interval_seconds = kwargs.pop("monitor_interval_seconds")
+        monitor = kwargs.pop("monitor", False)
+        # a single file
         if os.path.isfile(fname):
+            num_workers = kwargs.pop("num_workers", None)
             convert_one_file(fname, **kwargs)
-            if combinetime in ["end", "each"]:
-                combine_all_htmls(kwargs["target_dir"])
+            combine_all_htmls(kwargs["target_dir"])
         # a directory rather than a single file
-        else:
-            t0 = time.time()
-            while True:
+        elif os.path.isdir(fname):
+            if not monitor:
                 flist = glob.glob(os.path.join(fname, "*.hdf"))
-                flist.sort(key=os.path.getctime)
-                convert_many_files(flist, num_workers=8, **kwargs)
+                if len(flist) == 0:
+                    logger.error(f"No hdf files found in {fname}")
+                    return
+                convert_many_files(flist, **kwargs)
                 combine_all_htmls(kwargs["target_dir"])
-
-                # if combinetime == "each":
-                #     for f in flist:
-                #         if convert_one_file(f, **kwargs):
-                #             combine_all_htmls(kwargs["target_dir"])
-                # else:
-                #     # it is "never" or "end"
-                #     flag = False
-                #     for f in flist:
-                #         flag = flag or convert_one_file(f, **kwargs)
-                #     if flag:
-                #         combine_all_htmls(kwargs["target_dir"])
-                logger.info(f"check new files in {monito_interval_seconds} seconds")
-                time.sleep(monito_interval_seconds)
-                t1 = time.time()
-                if t1 - t0 > max_running_time:
-                    logger.info(f"max running time {max_running_time} seconds reached, exit")
-                    break
+            else:
+                logger.info(f"Monitoring the directory... {fname}")
+                monitor_and_process(fname, **kwargs)
+        else:
+            logger.error(f"Invalid file or directory: {fname}")
 
     elif command == "combine":
         combine_all_htmls(kwargs["target_dir"])
