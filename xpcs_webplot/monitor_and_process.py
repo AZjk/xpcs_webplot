@@ -1,3 +1,4 @@
+import os
 import time
 import multiprocessing
 from watchdog.observers import Observer
@@ -5,30 +6,86 @@ from watchdog.events import FileSystemEventHandler
 from .webplot_cli import convert_one_file
 from .html_utlits import combine_all_htmls
 import logging
+import h5py
+
+
+logger = logging.getLogger(__name__)
 
 
 logger = logging.getLogger(__name__)
 
 
 class HDF5FileHandler(FileSystemEventHandler):
-    """ Watches for new .hdf5 files and adds them to the queue. """
-
-    def __init__(self, task_queue, stop_flag):
+    """ Watches for new .hdf5 files (via renaming) and adds them to the queue when fully written. """
+    def __init__(self, task_queue, stop_flag, max_wait=10, check_interval=0.5):
         self.task_queue = task_queue
         self.stop_flag = stop_flag
+        self.max_wait = max_wait  # Max wait time for file to be fully written
+        self.check_interval = check_interval  # Interval to check file size stability
 
     def on_created(self, event):
-        """ Called when a new .hdf5 file is detected. """
+        """ Called when a new file is created. We ignore `.temp` files and wait for renaming. """
         if event.is_directory:
             return
 
-        if event.src_path.endswith(".hdf"):
-            if self.stop_flag.value:  # Check stop flag
-                logger.info("[Producer] Stop flag set. Ignoring new files.")
-                return
+        file_path = event.src_path
+        # Ignore temporary files, wait for the final rename
+        if file_path.endswith(".hdf.temp"):
+            return
+        # If a direct .hdf file is created (unlikely in your case, but just in case)
+        if file_path.endswith(".hdf"):
+            self.process_hdf_file(file_path)
 
-            logger.info(f"[Producer] New file detected: {event.src_path}")
-            self.task_queue.put(event.src_path)  # Add to queue
+    def on_moved(self, event):
+        """ Called when a file is renamed. This ensures we catch `.hdf.temp -> .hdf` renaming. """
+        if event.is_directory:
+            return
+        src_path = event.src_path
+        dest_path = event.dest_path
+        # We only care about files renamed to `.hdf`
+        if dest_path.endswith(".hdf"):
+            # logger.info(f"[Producer] File renamed: {src_path} -> {dest_path}")
+            self.process_hdf_file(dest_path)
+
+    def process_hdf_file(self, file_path):
+        """ Wait for the file to be fully written before adding it to the queue. """
+        if self.stop_flag.value:  # Check stop flag
+            logger.info("[Producer] Stop flag set. Ignoring new files.")
+            return
+
+        if self.wait_for_file_stability(file_path):
+            logger.info(f"[Producer] New file ready: {file_path}")
+            self.task_queue.put(file_path)  # Add to queue
+        else:
+            logger.warning(
+                f"[Producer] Skipping {file_path}: File may be incomplete or locked.")
+
+    def wait_for_file_stability(self, file_path):
+        """
+        Waits for the file size to stabilize and ensures it is readable.
+        Returns True if the file is ready, False otherwise.
+        """
+        t0 = time.time()
+        prev_size = -1
+
+        while time.time() - t0 < self.max_wait:
+            if not os.path.exists(file_path):
+                time.sleep(self.check_interval)
+                continue  # Wait until file appears
+
+            try:
+                curr_size = os.path.getsize(file_path)
+                if curr_size == prev_size:
+                    # Try opening the file to confirm it's readable
+                    with h5py.File(file_path, "r"):
+                        return True  # File is ready!
+                prev_size = curr_size
+                time.sleep(self.check_interval)
+
+            except (OSError, BlockingIOError):
+                # File is likely still being written
+                time.sleep(self.check_interval)
+        return False  # Timed out, file is still unstable
 
 
 def producer(folder_path, task_queue, stop_flag):
@@ -61,8 +118,8 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
             combine_all_htmls(analysis_kwargs["target_dir"])
 
         except multiprocessing.queues.Empty:
-            logger.info(
-                f"[Consumer-{consumer_id}] No tasks available, waiting...")
+            # logger.info(
+            #     f"[Consumer-{consumer_id}] No tasks available, waiting...")
             time.sleep(1)
 
     logger.info(f"[Consumer-{consumer_id}] Stop flag set. Exiting.")
