@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class HDF5FileHandler(FileSystemEventHandler):
     """ Watches for new .hdf5 files (via renaming) and adds them to the queue when fully written. """
-    def __init__(self, task_queue, stop_flag, max_wait=10, check_interval=0.5):
+    def __init__(self, task_queue, stop_flag, max_wait=60, check_interval=0.5):
         self.task_queue = task_queue
         self.stop_flag = stop_flag
         self.max_wait = max_wait  # Max wait time for file to be fully written
