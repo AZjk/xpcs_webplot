@@ -57,13 +57,13 @@ def main():
     plot_command.add_argument("fname", type=str,
                         help="the hdf filename or the folder that the results are stored")
 
-    plot_command.add_argument("--target_dir", type=str, nargs="?", default="/tmp",
+    plot_command.add_argument("--target-dir", type=str, nargs="?", default="/tmp",
                         help="output directory")
 
-    plot_command.add_argument("--image_only", action="store_true",
+    plot_command.add_argument("--image-only", action="store_true",
                               help="only generate images, no html")
 
-    plot_command.add_argument("--num_img", type=int, nargs="?", default=4,
+    plot_command.add_argument("--num-img", type=int, nargs="?", default=4,
                         help="number of images per row")
 
     plot_command.add_argument("--dpi", type=int, nargs="?", default=240,
@@ -83,11 +83,11 @@ def main():
                               help="maximum running time in seconds")
     
     combine_command = subparsers.add_parser("combine", help="combine htmls in one")
-    combine_command.add_argument("target_dir", type=str, nargs="?",
+    combine_command.add_argument("target-dir", type=str, nargs="?",
                                 help="the plot directory to combine")
     
     serve_command = subparsers.add_parser("serve", help="serve the htmls")
-    serve_command.add_argument("--target_dir", type=str, default=".",
+    serve_command.add_argument("--target-dir", type=str, default=".",
                                help="the plot directory to host the server")
     serve_command.add_argument("--port", type=int, help="port to run the http server",
                               default=8081)
@@ -103,6 +103,7 @@ def main():
         # a single file
         if os.path.isfile(fname):
             kwargs.pop("num_workers", None)
+            kwargs.pop('max_running_time', None)
             convert_one_file(fname, **kwargs)
             combine_all_htmls(kwargs["target_dir"])
         # a directory rather than a single file
