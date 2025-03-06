@@ -12,7 +12,17 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .html_utlits import convert_to_html
 import logging
 import traceback
-from xpcs_viewer.xpcs_file import XpcsFile as XF 
+from pyxpcsviewer.xpcs_file import XpcsFile as XF 
+import matplotlib.colors as mcolors
+
+colors = [
+    [1.0, 1.0, 1.0,  0.6],   # White (first bin)
+    [0.55, 0.0, 0.0, 0.6],  # Dark Red
+    [0.0, 0.39, 0.0, 0.6],  # Dark Green
+    [0.0, 0.0, 0.55, 0.6],  # Dark Blue
+    [0.55, 0.0, 0.55,0.6]  # Dark Magenta
+]
+cmap_4colors = mcolors.ListedColormap(colors)
 
 
 logger = logging.getLogger(__name__)
@@ -116,7 +126,7 @@ def plot_roi_mask(fig, ax, roi_mask, num_img, nophi=1):
         roi_mask[invalid_idx] = np.nan
         # mark the overall valid region with light color;
         roi_mask[valid_roi] = 0.25
-        im = ax.imshow(roi_mask, origin="lower", cmap=plt.get_cmap("Greys"),
+        im = ax.imshow(roi_mask, origin="lower", cmap=cmap_4colors,
                        vmin=0, vmax=num_img + 1)
     else:
         s = np.ones_like(roi_mask, dtype=np.float32) 
@@ -135,42 +145,46 @@ def plot_roi_mask(fig, ax, roi_mask, num_img, nophi=1):
     return
 
 
-def plot_multitau_row(t_el, g2, g2_err, roi_mask, save_name, save_dir, label,
-                      dnophi=1, num_img=4, dpi=240):
+def plot_multitau_row(xf_obj, roi_mask, save_name, save_dir, num_img=4, dpi=240,
+                      q_index_offset=0):
 
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
-
-    plot_roi_mask(fig, ax[0], roi_mask, num_img, dnophi)
+   
+    shape = xf_obj.dynamic_num_pts
+    plot_roi_mask(fig, ax[0], roi_mask, num_img, shape[1])
 
     cmap = plt.cm.get_cmap("hsv")
-    for n in range(g2.shape[0] // dnophi):
+    for n in range(num_img):
+        q_index = n + q_index_offset
+        if q_index >= shape[0]:
+            continue
         bx = ax[n + 1]
-        sl = slice(n * dnophi, (n + 1) * dnophi)
-        g2_mean = np.mean(g2[sl], axis=1)
-        g2_mean_all = np.mean(g2[sl])
-        for p in range(dnophi):
-            if dnophi == 1:
+        qbin_list = xf_obj.get_qbinlist_at_qindex(q_index, zero_based=True)
+        for p, qbin in enumerate(qbin_list):
+            if shape[1] == 1:
                 color1 = "b"
                 color2 = "r"
-                offset = 0
+                title = xf_obj.get_qbin_label(qbin + 1)
+                label = None
             else:
-                color1 = cmap(p / 1.0 / dnophi)
-                color2 = color1 
-                offset = g2_mean_all - g2_mean[p]
+                color1 = cmap(p / shape[1])
+                color2 = color1
+                label_full = xf_obj.get_qbin_label(qbin + 1)
+                label_q = label_full.split(", ")[0]
+                label = label_full.split(", ")[1]
+                title = label_q
 
-            idx = n * dnophi + p
-            g2_temp = g2[idx] + offset
-            bx.semilogx(t_el, g2_temp, "o", color=color1, mfc="none", ms=2.0, 
-                        alpha=0.8)
-            bx.semilogx(t_el, g2_temp, color=color2, alpha=0.8, lw=0.5)
-            # bx.errorbar(t_el, g2[n], yerr=g2_err[n], fmt="o",
-            #             ecolor="lightgreen",
-            #             color="blue", ms=0.001, mew=1, capsize=3, alpha=0.8)
-            # bx.set_xscale("log")
-        bx.set_xlabel("t (s)")
-        bx.set_ylabel("g2")
-        bx.set_title(label[n])
+            g2_temp = xf_obj.g2[:, qbin]
+            bx.semilogx(xf_obj.t_el, g2_temp, "o", color=color1, mfc="none", ms=2.0, 
+                        alpha=0.8, label=label)
+            bx.semilogx(xf_obj.t_el, g2_temp, color=color2, alpha=0.8, lw=0.5)
+
+            if p == 0:
+                bx.set_xlabel("t (s)")
+                bx.set_ylabel("g2")
+                bx.set_title(title)
+            bx.legend(loc="best", fontsize=8)
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
@@ -252,39 +266,28 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     return mask, dqmap
 
 
+def create_highlight_roi_mask(xf_obj, st, ed):
+    roi_mask = np.copy(xf_obj.mask).astype(np.int64)
+    for idx in range(st, ed):
+        val = (idx - st)  + 1
+        roi_mask += (xf_obj.dqmap == (idx + 1)) * val 
+    return roi_mask
+
+
 def plot_multitau_correlation(xf_obj, save_dir, num_img, dpi=120):
-    g2d = xf_obj.g2.T
-    g2e = xf_obj.g2_err.T 
-    tot_num = g2d.shape[0]
-    img_list = []
-
     shape = xf_obj.dynamic_num_pts
-    dqlist = xf_obj.dqlist
-    # print(shape, dqlist.shape, g2d.shape, g2e.shape)
-
-    num_row = (shape[0] + num_img - 1) // num_img
-    if num_row == 1:
-        num_img = shape[0] 
+    tot_num = shape[0]
+    img_list = []
+    num_row = (tot_num + num_img - 1) // num_img
+    if num_row == 1: num_img = shape[0]
 
     for n in range(0, num_row):
-        st = num_img * n * shape[1]
-        ed = min(tot_num, num_img * (n + 1) * shape[1])
+        st = num_img * n
+        ed = min(tot_num, num_img * (n + 1))
         save_name = f"g2_{n:04d}.png"
-        label = []
-        roi_mask = np.copy(xf_obj.mask).astype(np.int64)
-
-        for idx in range(st, ed):
-            # val = (idx - st) // shape[1] + 1
-            val = (idx - st)  + 1
-            roi_mask += (xf_obj.dqmap == (idx + 1)) * val 
-
-        for idx in range(st // shape[1], ed // shape[1]):
-            label.append("$q=%.4f\\AA^{-1}$" % dqlist[idx])
-
-        plot_multitau_row(xf_obj.t_el, g2d[st:ed], g2e[st:ed], roi_mask,
-                          save_name, save_dir, label, num_img=num_img, dpi=dpi,
-                          dnophi=shape[1])
-
+        roi_mask = create_highlight_roi_mask(xf_obj, st, ed)
+        plot_multitau_row(xf_obj, roi_mask, save_name, save_dir,
+                          num_img=num_img, dpi=dpi, q_index_offset=st)
         img_list.append(os.path.join(os.path.basename(save_dir), save_name))
 
     return {"correlation_g2": img_list}
@@ -305,12 +308,11 @@ def plot_twotime_correlation(xf_obj, save_dir, num_img, dpi=120):
         save_name = f"c2_{n:04d}.png"
         c2_val = []
         label = []
-        roi_mask = np.copy(xf_obj.mask).astype(np.int64)
+        roi_mask = create_highlight_roi_mask(xf_obj, st, ed)
         for idx in range(st, ed):
             qidx, c2 = next(c2_stream)
             c2_val.append(c2)
-            label.append("$q=%.4f\\AA^{-1}$" % xf_obj.dqlist[idx])
-            roi_mask += (xf_obj.dqmap == qidx) * (idx - st + 1)
+            label.append(xf_obj.get_qbin_label(qidx))   # qidx is one-based
 
         plot_twotime_row(xf_obj.t0, c2_val, label, roi_mask,
                         save_name, save_dir, num_img=num_img, dpi=dpi)
