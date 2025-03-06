@@ -12,7 +12,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .html_utlits import convert_to_html
 import logging
 import traceback
-from pyxpcsviewer.xpcs_file import XpcsFile as XF 
+from pyxpcsviewer.xpcs_file import XpcsFile as XF
 import matplotlib.colors as mcolors
 
 colors = [
@@ -43,16 +43,16 @@ def rename_files(work_dir):
         os.rename("stability.png", "total_intensity_vs_time.png")
 
     # clean work_dir
-    basename_str = os.path.basename(work_dir) 
+    basename_str = os.path.basename(work_dir)
 
     for n in range(1024):
         g2_name = "g2_%04d.png" % n
         if g2_name in all_png:
-            os.rename(g2_name, 
+            os.rename(g2_name,
                 basename_str + "_g2_corr_%03d_%03d.png" % (n * 9, n * 9 + 8))
         else:
             break
-    
+
     offset = n
     for n in range(1024):
         g2_name = "c2_%04d.png" % n
@@ -62,7 +62,7 @@ def rename_files(work_dir):
                 basename_str + "_g2_corr_%03d_%03d.png" % (m * 9, m * 9 + 8))
         else:
             break
-    
+
     return
 
 
@@ -81,7 +81,7 @@ def plot_stability(ql_sta, Iqp, intt, save_dir=".", dpi=240):
 
     figsize = (16, 3.6)
     fig, ax = plt.subplots(1, 2, figsize=figsize)
-    
+
     for n in range(Iqp.shape[0]):
         ax[0].loglog(ql_sta, Iqp[n], label=f"{n}")
 
@@ -129,7 +129,7 @@ def plot_roi_mask(fig, ax, roi_mask, num_img, nophi=1):
         im = ax.imshow(roi_mask, origin="lower", cmap=cmap_4colors,
                        vmin=0, vmax=num_img + 1)
     else:
-        s = np.ones_like(roi_mask, dtype=np.float32) 
+        s = np.ones_like(roi_mask, dtype=np.float32)
         h = roi_mask % nophi
         h = (h - np.min(h)) / (np.max(h) - np.min(h))
         v = roi_mask // nophi
@@ -150,7 +150,7 @@ def plot_multitau_row(xf_obj, roi_mask, save_name, save_dir, num_img=4, dpi=240,
 
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
-   
+
     shape = xf_obj.dynamic_num_pts
     plot_roi_mask(fig, ax[0], roi_mask, num_img, shape[1])
 
@@ -163,28 +163,26 @@ def plot_multitau_row(xf_obj, roi_mask, save_name, save_dir, num_img=4, dpi=240,
         qbin_list = xf_obj.get_qbinlist_at_qindex(q_index, zero_based=True)
         for p, qbin in enumerate(qbin_list):
             if shape[1] == 1:
-                color1 = "b"
-                color2 = "r"
+                color = "b"
                 title = xf_obj.get_qbin_label(qbin + 1)
-                label = None
+                label = f"qbin={qbin+1}"
             else:
-                color1 = cmap(p / shape[1])
-                color2 = color1
+                color = cmap(p / shape[1])
                 label_full = xf_obj.get_qbin_label(qbin + 1)
                 label_q = label_full.split(", ")[0]
-                label = label_full.split(", ")[1]
+                label = f"{qbin+1}: " + label_full.split(", ")[1]
                 title = label_q
 
             g2_temp = xf_obj.g2[:, qbin]
-            bx.semilogx(xf_obj.t_el, g2_temp, "o", color=color1, mfc="none", ms=2.0, 
+            bx.semilogx(xf_obj.t_el, g2_temp, "o", color=color, mfc="none", ms=2.0,
                         alpha=0.8, label=label)
-            bx.semilogx(xf_obj.t_el, g2_temp, color=color2, alpha=0.8, lw=0.5)
+            bx.semilogx(xf_obj.t_el, g2_temp, color=color, alpha=0.8, lw=0.5)
 
             if p == 0:
                 bx.set_xlabel("t (s)")
                 bx.set_ylabel("g2")
                 bx.set_title(title)
-            bx.legend(loc="best", fontsize=8)
+        bx.legend(loc="best", fontsize=6)
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
@@ -235,9 +233,13 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     dqmap = dqmap[sl_v, sl_h] * mask
 
     # plot
-    saxs_min = np.min(saxs[saxs > 0])
-    saxs[saxs < saxs_min] = saxs_min
-    saxs = np.log10(saxs)
+    valid_mask = saxs > 0
+    if np.sum(valid_mask) == 0:
+        logger.error("No valid data in saxs")
+    else:
+        saxs_min = np.min(saxs[saxs > 0])
+        saxs[saxs < saxs_min] = saxs_min
+        saxs = np.log10(saxs)
 
     if saxs.shape[0] > saxs.shape[1]:
         saxs = saxs.T
@@ -270,7 +272,7 @@ def create_highlight_roi_mask(xf_obj, st, ed):
     roi_mask = np.copy(xf_obj.mask).astype(np.int64)
     for idx in range(st, ed):
         val = (idx - st)  + 1
-        roi_mask += (xf_obj.dqmap == (idx + 1)) * val 
+        roi_mask += (xf_obj.dqmap == (idx + 1)) * val
     return roi_mask
 
 
@@ -296,7 +298,7 @@ def plot_multitau_correlation(xf_obj, save_dir, num_img, dpi=120):
 def plot_twotime_correlation(xf_obj, save_dir, num_img, dpi=120):
     img_list = []
     idxlist, c2_stream = xf_obj.get_twotime_stream()
-    tot_num = len(idxlist) 
+    tot_num = len(idxlist)
 
     num_row = (tot_num + num_img - 1) // num_img
     if num_row == 1:
@@ -375,7 +377,7 @@ def hdf2web(fname=None, target_dir="html", num_img=4, dpi=240, overwrite=False,
 
     html_dict = {"scattering": os.path.join(save_dir_rel, "saxs_mask.png")}
 
-    img_description = plot_stability(xf.sqlist, xf.Iqp, xf.Int_t, save_dir, 
+    img_description = plot_stability(xf.sqlist, xf.Iqp, xf.Int_t, save_dir,
                                      dpi=dpi)
 
     html_dict.update(img_description)
@@ -386,7 +388,7 @@ def hdf2web(fname=None, target_dir="html", num_img=4, dpi=240, overwrite=False,
     if "Twotime" in xf.atype:
         img_description = plot_twotime_correlation(xf, save_dir, num_img, dpi)
         html_dict.update(img_description)
-    
+
     # prepare metadata
     metadata = xf.get_hdf_info()
     metadata["analysis_type"] = xf.atype
