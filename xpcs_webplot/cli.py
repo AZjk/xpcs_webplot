@@ -83,7 +83,7 @@ def main():
                               help="maximum running time in seconds")
     
     combine_command = subparsers.add_parser("combine", help="combine htmls in one")
-    combine_command.add_argument("target-dir", type=str, nargs="?",
+    combine_command.add_argument("target_dir", type=str, nargs="?",
                                 help="the plot directory to combine")
     
     serve_command = subparsers.add_parser("serve", help="serve the htmls")
