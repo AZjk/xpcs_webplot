@@ -66,6 +66,7 @@ def combine_all_htmls(target_folder="html"):
         if x in targets:
             continue
         short_label = os.path.splitext(x)[0]
+        short_name = short_label.rstrip("_results")
         json_fname = os.path.join(target_folder, short_label, "metadata.json") 
         try:
             with open(json_fname, "r") as f:
@@ -74,10 +75,8 @@ def combine_all_htmls(target_folder="html"):
         except Exception as e:
             logger.error(str(e))
         else:
-            html_info.append([
-                short_label, x, v1, v2, v3
-            ])
-    # html_info.sort(key=lambda x: x[2])
+            html_info.append([ short_name, x, v1, v2, v3])
+    html_info.sort(key=lambda x: x[3], reverse=True)
     tfiles = ["combined.html"]
 
     loader = jinja2.FileSystemLoader(template_path)
