@@ -208,7 +208,7 @@ def plot_twotime_row(deltat, x, label, roi_mask, save_name, save_dir,
         divider0 = make_axes_locatable(ax[n + 1])
         cax = divider0.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(imx, cax=cax)
-        ax[n + 1].set_title(label[n])
+        # ax[n + 1].set_title(label[n])
 
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
