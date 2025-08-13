@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xpcs_webplot"
+version = "0.0.1"
+description = "XPCS web plotting tools with Flask-based dynamic visualization"
+readme = "README.rst"
+requires-python = ">=3.6"
+license = {text = "MIT"}
+authors = [
+    {name = "Miaoqi Chu", email = "mqichu@anl.gov"},
+]
+keywords = ["xpcs", "webplot", "visualization", "flask"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "numpy",
+    "h5py",
+    "matplotlib",
+    "jinja2",
+    "flask",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=3",
+    "pytest-cov",
+    "flake8",
+    "black",
+]
+
+[project.scripts]
+xpcs_webplot = "xpcs_webplot.cli:main"
+xpcs_webplot_server = "xpcs_webplot.flask_app:main"
+xpcs_webplot_migrate = "xpcs_webplot.migrate_to_flask:main"
+
+[project.urls]
+Homepage = "https://github.com/AZjk/xpcs_webplot"
+Repository = "https://github.com/AZjk/xpcs_webplot"
+
+[tool.setuptools]
+packages = ["xpcs_webplot", "xpcs_webplot.templates"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"xpcs_webplot.templates" = ["*.html", "mini-preview/*"]

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>XPCS Results Dashboard</title>
+  <style>
+    body {
+      margin: 0px;
+      padding: 20px;
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f5f5f5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .filters {
+      background-color: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 15px;
+    }
+
+    .filter-group {
+      flex: 1;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .filter-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: #1bc0dd;
+    }
+
+    .stats {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #666;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+
+    tr:hover {
+      background-color: #e9ecef;
+    }
+
+    th {
+      background-color: #1bc0dd;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    th.sortable:hover {
+      background-color: #179bb5;
+    }
+
+    .sort-arrow {
+      font-size: 12px;
+      margin-left: 5px;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1bc0dd;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>XPCS Results Dashboard</h1>
+    
+    <div class="filters">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="filename-filter">Filter by Filename:</label>
+          <input type="text" id="filename-filter" class="filter-input" placeholder="Enter filename to search...">
+        </div>
+        <div class="filter-group">
+          <label for="analysis-filter">Filter by Analysis Type:</label>
+          <input type="text" id="analysis-filter" class="filter-input" placeholder="Enter analysis type...">
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      Showing <span id="filtered-count">{{ data|length }}</span> of <span id="total-count">{{ data|length }}</span> results
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Loading results...</p>
+    </div>
+
+    <table id="results-table">
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="name">
+            Filename
+            <span class="sort-arrow" id="sort-name">⬍</span>
+          </th>
+          <th class="sortable" data-sort="analysis_type">
+            Analysis Type
+            <span class="sort-arrow" id="sort-analysis_type">⬍</span>
+          </th>
+          <th class="sortable" data-sort="start_time">
+            Start Time
+            <span class="sort-arrow" id="sort-start_time">⬇</span>
+          </th>
+          <th class="sortable" data-sort="plot_time">
+            Plot Time
+            <span class="sort-arrow" id="sort-plot_time">⬍</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody id="results-body">
+        {% for item in data %}
+        <tr>
+          <td><a href="/view/{{ item.folder }}">{{ item.name }}</a></td>
+          <td>{{ item.analysis_type }}</td>
+          <td>{{ item.start_time }}</td>
+          <td>{{ item.plot_time }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="no-results" id="no-results" style="display: none;">
+      No results found matching your filters.
+    </div>
+  </div>
+
+  <script>
+    // Store original data
+    let allData = {{ data | tojson | safe }};
+    let currentSort = { field: 'start_time', ascending: false };
+    let filters = { filename: '', analysis_type: '' };
+
+    // Debounce function
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // Update table with filtered/sorted data
+    function updateTable(data) {
+      const tbody = document.getElementById('results-body');
+      const noResults = document.getElementById('no-results');
+      const table = document.getElementById('results-table');
+      
+      if (data.length === 0) {
+        table.style.display = 'none';
+        noResults.style.display = 'block';
+      } else {
+        table.style.display = 'table';
+        noResults.style.display = 'none';
+        
+        tbody.innerHTML = data.map(item => `
+          <tr>
+            <td><a href="/view/${item.folder}">${item.name}</a></td>
+            <td>${item.analysis_type}</td>
+            <td>${item.start_time}</td>
+            <td>${item.plot_time}</td>
+          </tr>
+        `).join('');
+      }
+      
+      // Update count
+      document.getElementById('filtered-count').textContent = data.length;
+    }
+
+    // Filter data
+    function filterData() {
+      let filtered = allData.filter(item => {
+        const matchesFilename = !filters.filename || 
+          item.name.toLowerCase().includes(filters.filename.toLowerCase());
+        const matchesAnalysis = !filters.analysis_type || 
+          item.analysis_type.toLowerCase().includes(filters.analysis_type.toLowerCase());
+        return matchesFilename && matchesAnalysis;
+      });
+      
+      // Apply current sort
+      filtered = sortData(filtered, currentSort.field, currentSort.ascending);
+      
+      updateTable(filtered);
+    }
+
+    // Sort data
+    function sortData(data, field, ascending) {
+      return [...data].sort((a, b) => {
+        let aVal = a[field] || '';
+        let bVal = b[field] || '';
+        
+        // Handle date sorting
+        if (field === 'start_time' || field === 'plot_time') {
+          aVal = new Date(aVal).getTime() || 0;
+          bVal = new Date(bVal).getTime() || 0;
+        }
+        
+        if (aVal < bVal) return ascending ? -1 : 1;
+        if (aVal > bVal) return ascending ? 1 : -1;
+        return 0;
+      });
+    }
+
+    // Update sort arrows
+    function updateSortArrows() {
+      document.querySelectorAll('.sort-arrow').forEach(arrow => {
+        arrow.textContent = '⬍';
+      });
+      
+      const currentArrow = document.getElementById(`sort-${currentSort.field}`);
+      if (currentArrow) {
+        currentArrow.textContent = currentSort.ascending ? '⬆' : '⬇';
+      }
+    }
+
+    // Handle sort click
+    document.querySelectorAll('.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const field = th.getAttribute('data-sort');
+        
+        if (currentSort.field === field) {
+          currentSort.ascending = !currentSort.ascending;
+        } else {
+          currentSort.field = field;
+          currentSort.ascending = true;
+        }
+        
+        updateSortArrows();
+        filterData();
+      });
+    });
+
+    // Handle filter inputs
+    const debouncedFilter = debounce(filterData, 300);
+
+    document.getElementById('filename-filter').addEventListener('input', (e) => {
+      filters.filename = e.target.value;
+      debouncedFilter();
+    });
+
+    document.getElementById('analysis-filter').addEventListener('input', (e) => {
+      filters.analysis_type = e.target.value;
+      debouncedFilter();
+    });
+
+    // Initialize
+    updateSortArrows();
+  </script>
+</body>
+
+</html>
