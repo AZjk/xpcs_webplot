@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "xpcs_webplot"
 version = "0.0.1"
 description = "XPCS web plotting tools with Flask-based dynamic visualization"
 readme = "README.rst"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "Miaoqi Chu", email = "mqichu@anl.gov"},
@@ -19,12 +19,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
@@ -41,6 +40,8 @@ dev = [
     "pytest-cov",
     "flake8",
     "black",
+    "mypy",
+    "pre-commit",
 ]
 
 [project.scripts]
@@ -51,10 +52,40 @@ xpcs_webplot_migrate = "xpcs_webplot.migrate_to_flask:main"
 [project.urls]
 Homepage = "https://github.com/AZjk/xpcs_webplot"
 Repository = "https://github.com/AZjk/xpcs_webplot"
+"Bug Tracker" = "https://github.com/AZjk/xpcs_webplot/issues"
 
 [tool.setuptools]
-packages = ["xpcs_webplot", "xpcs_webplot.templates"]
-include-package-data = true
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-"xpcs_webplot.templates" = ["*.html", "mini-preview/*"]
+xpcs_webplot = [
+    "templates/*.html",
+    "templates/mini-preview/*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --cov=xpcs_webplot --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/xpcs_webplot"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

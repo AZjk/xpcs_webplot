@@ -1,5 +1,0 @@
-numpy
-h5py
-matplotlib
-jinja2
-flask
