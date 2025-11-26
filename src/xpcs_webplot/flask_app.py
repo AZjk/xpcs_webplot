@@ -7,11 +7,12 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder='templates')
+# Global app instance will be configured later
+app = None
 
-# Configuration
-app.config['HTML_FOLDER'] = 'html'
-app.config['RESULTS_SUBFOLDER'] = 'results'
+# Default configuration
+DEFAULT_HTML_FOLDER = 'html'
+DEFAULT_RESULTS_SUBFOLDER = 'results'
 
 
 def get_html_data(html_folder):
@@ -26,7 +27,7 @@ def get_html_data(html_folder):
         item_path = os.path.join(html_folder, item)
         
         # Skip if not a directory or if it's the results subfolder
-        if not os.path.isdir(item_path) or item == app.config['RESULTS_SUBFOLDER']:
+        if not os.path.isdir(item_path) or item == DEFAULT_RESULTS_SUBFOLDER:
             continue
             
         # Look for metadata.json in the directory
@@ -60,102 +61,103 @@ def get_html_data(html_folder):
     return html_info
 
 
-@app.route('/')
-def index():
-    """Main index page with dynamic content."""
-    html_data = get_html_data(app.config['HTML_FOLDER'])
-    return render_template('flask_index.html', data=html_data)
-
-
-@app.route('/api/data')
-def api_data():
-    """API endpoint for getting data with filtering."""
-    html_data = get_html_data(app.config['HTML_FOLDER'])
-    
-    # Apply filters if provided
-    filename_filter = request.args.get('filename', '').lower()
-    analysis_filter = request.args.get('analysis_type', '').lower()
-    
-    if filename_filter or analysis_filter:
-        filtered_data = []
-        for item in html_data:
-            if filename_filter and filename_filter not in item['name'].lower():
-                continue
-            if analysis_filter and analysis_filter not in item['analysis_type'].lower():
-                continue
-            filtered_data.append(item)
-        html_data = filtered_data
-    
-    return jsonify(html_data)
-
-
-@app.route('/view/<folder_name>')
-def view_result(folder_name):
-    """View individual result page."""
-    folder_path = os.path.join(app.config['HTML_FOLDER'], folder_name)
-    
-    if not os.path.exists(folder_path):
-        return "Result not found", 404
-    
-    # Read metadata
-    json_fname = os.path.join(folder_path, "metadata.json")
-    if not os.path.exists(json_fname):
-        return "Metadata not found", 404
-    
-    with open(json_fname, "r") as f:
-        metadata = json.load(f)
-    
-    # Prepare data for template
-    data_dict = {
-        'title': folder_name.rstrip("_results"),
-        'folder': folder_name,
-        'metadata': metadata,
-        'scattering': f"{folder_name}/saxs_mask.png",
-        'stability': f"{folder_name}/stability.png",
-    }
-    
-    # Get correlation images
-    files = os.listdir(folder_path)
-    png_files = [f for f in files if f.endswith('.png')]
-    
-    # Remove scattering and stability from list
-    if 'saxs_mask.png' in png_files:
-        png_files.remove('saxs_mask.png')
-    if 'stability.png' in png_files:
-        png_files.remove('stability.png')
-    
-    # Sort correlation images
-    png_files.sort()
-    
-    # Separate g2 and c2 correlation images
-    correlation_g2 = []
-    correlation_c2 = []
-    
-    for f in png_files:
-        if 'g2' in f.lower():
-            correlation_g2.append(f"{folder_name}/{f}")
-        elif 'c2' in f.lower():
-            correlation_c2.append(f"{folder_name}/{f}")
-        else:
-            # Default to g2 if not specified
-            correlation_g2.append(f"{folder_name}/{f}")
-    
-    data_dict['correlation_g2'] = correlation_g2
-    data_dict['correlation_c2'] = correlation_c2
-    
-    return render_template('flask_single.html', mydata=data_dict)
-
-
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """Serve static files from the HTML folder."""
-    return send_from_directory(app.config['HTML_FOLDER'], filename)
-
-
-def create_app(html_folder='html'):
+def create_app(html_folder=DEFAULT_HTML_FOLDER):
     """Factory function to create Flask app with custom HTML folder."""
-    app.config['HTML_FOLDER'] = html_folder
-    return app
+    flask_app = Flask(__name__, template_folder='templates')
+    
+    # Configuration
+    flask_app.config['HTML_FOLDER'] = html_folder
+    flask_app.config['RESULTS_SUBFOLDER'] = DEFAULT_RESULTS_SUBFOLDER
+    
+    @flask_app.route('/')
+    def index():
+        """Main index page with dynamic content."""
+        html_data = get_html_data(flask_app.config['HTML_FOLDER'])
+        return render_template('flask_index.html', data=html_data)
+
+    @flask_app.route('/api/data')
+    def api_data():
+        """API endpoint for getting data with filtering."""
+        html_data = get_html_data(flask_app.config['HTML_FOLDER'])
+        
+        # Apply filters if provided
+        filename_filter = request.args.get('filename', '').lower()
+        analysis_filter = request.args.get('analysis_type', '').lower()
+        
+        if filename_filter or analysis_filter:
+            filtered_data = []
+            for item in html_data:
+                if filename_filter and filename_filter not in item['name'].lower():
+                    continue
+                if analysis_filter and analysis_filter not in item['analysis_type'].lower():
+                    continue
+                filtered_data.append(item)
+            html_data = filtered_data
+        
+        return jsonify(html_data)
+
+    @flask_app.route('/view/<folder_name>')
+    def view_result(folder_name):
+        """View individual result page."""
+        folder_path = os.path.join(flask_app.config['HTML_FOLDER'], folder_name)
+        
+        if not os.path.exists(folder_path):
+            return "Result not found", 404
+        
+        # Read metadata
+        json_fname = os.path.join(folder_path, "metadata.json")
+        if not os.path.exists(json_fname):
+            return "Metadata not found", 404
+        
+        with open(json_fname, "r") as f:
+            metadata = json.load(f)
+        
+        # Prepare data for template
+        data_dict = {
+            'title': folder_name.rstrip("_results"),
+            'folder': folder_name,
+            'metadata': metadata,
+            'scattering': f"{folder_name}/saxs_mask.png",
+            'stability': f"{folder_name}/stability.png",
+        }
+        
+        # Get correlation images
+        files = os.listdir(folder_path)
+        png_files = [f for f in files if f.endswith('.png')]
+        
+        # Remove scattering and stability from list
+        if 'saxs_mask.png' in png_files:
+            png_files.remove('saxs_mask.png')
+        if 'stability.png' in png_files:
+            png_files.remove('stability.png')
+        
+        # Sort correlation images
+        png_files.sort()
+        
+        # Separate g2 and c2 correlation images
+        correlation_g2 = []
+        correlation_c2 = []
+        
+        for f in png_files:
+            if 'g2' in f.lower():
+                correlation_g2.append(f"{folder_name}/{f}")
+            elif 'c2' in f.lower():
+                correlation_c2.append(f"{folder_name}/{f}")
+            else:
+                # Default to g2 if not specified
+                correlation_g2.append(f"{folder_name}/{f}")
+        
+        data_dict['correlation_g2'] = correlation_g2
+        data_dict['correlation_c2'] = correlation_c2
+        
+        return render_template('flask_single.html', mydata=data_dict)
+
+    @flask_app.route('/static/<path:filename>')
+    def serve_static(filename):
+        """Serve static files from the HTML folder."""
+        return send_from_directory(flask_app.config['HTML_FOLDER'], filename)
+    
+    return flask_app
 
 
 def main():
@@ -163,7 +165,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(description='Run XPCS WebPlot Flask server')
-    parser.add_argument('--html-folder', default='html', 
+    parser.add_argument('--html-folder', default=DEFAULT_HTML_FOLDER, 
                         help='Path to the HTML folder containing results (default: html)')
     parser.add_argument('--host', default='0.0.0.0',
                         help='Host to run the server on (default: 0.0.0.0)')
@@ -174,15 +176,15 @@ def main():
     
     args = parser.parse_args()
     
-    # Update app configuration
-    app.config['HTML_FOLDER'] = args.html_folder
+    # Create app with proper configuration
+    flask_app = create_app(args.html_folder)
     
     print(f"Starting XPCS WebPlot server...")
     print(f"HTML folder: {args.html_folder}")
     print(f"Server running at http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop the server")
     
-    app.run(debug=args.debug, host=args.host, port=args.port)
+    flask_app.run(debug=args.debug, host=args.host, port=args.port)
 
 
 if __name__ == '__main__':

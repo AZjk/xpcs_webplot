@@ -5,10 +5,8 @@ import os
 import glob
 from .webplot_cli import convert_one_file, convert_many_files 
 from .html_utlits import combine_all_htmls
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-import socket
-from functools import partial
 from .monitor_and_process import monitor_and_process
+from .flask_app import create_app
 
 
 logging.basicConfig(level=logging.INFO,
@@ -18,35 +16,20 @@ logger = logging.getLogger(__name__)
 
 
 
-def get_local_ip():
+def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
     """
-    get local ip address
+    Run Flask server to serve the XPCS webplot results
     """
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except:
-        return "127.0.0.1"
-
-
-def run_server(target_dir=".", port=8000):
-    """
-    run a simple http server to serve the images for target_dir
-    """
-    # Use partial to create a handler class with the specified directory
-    handler = partial(SimpleHTTPRequestHandler, directory=target_dir)
+    app = create_app(html_folder)
     
-    server_address = ("0.0.0.0", port)
-    httpd = HTTPServer(server_address, handler)
-    local_ip = get_local_ip()
-    print(f"Serving directory: {target_dir}")
+    print(f"Starting XPCS WebPlot Flask server...")
+    print(f"HTML folder: {html_folder}")
     print(f"Server running at:")
     print(f" - Local:   http://localhost:{port}")
-    print(f" - Network: http://{local_ip}:{port}")
-    httpd.serve_forever()
+    print(f" - Network: http://{host}:{port}")
+    print("Press Ctrl+C to stop the server")
+    
+    app.run(debug=False, host=host, port=port)
 
 
 def main():
@@ -86,11 +69,13 @@ def main():
     combine_command.add_argument("target_dir", type=str, nargs="?",
                                 help="the plot directory to combine")
     
-    serve_command = subparsers.add_parser("serve", help="serve the htmls")
+    serve_command = subparsers.add_parser("serve", help="serve the htmls with Flask web server")
     serve_command.add_argument("--target-dir", type=str, default=".",
-                               help="the plot directory to host the server")
-    serve_command.add_argument("--port", type=int, help="port to run the http server",
-                              default=8081)
+                               help="the HTML folder containing XPCS results")
+    serve_command.add_argument("--port", type=int, help="port to run the Flask server",
+                              default=5000)
+    serve_command.add_argument("--host", type=str, default="0.0.0.0",
+                               help="host to run the Flask server on (default: 0.0.0.0)")
     
     kwargs = vars(parser.parse_args())
     logger.info("|".join([f"{k}:{v}" for k, v in kwargs.items()]))
@@ -105,7 +90,6 @@ def main():
             kwargs.pop("num_workers", None)
             kwargs.pop('max_running_time', None)
             convert_one_file(fname, **kwargs)
-            combine_all_htmls(kwargs["target_dir"])
         # a directory rather than a single file
         elif os.path.isdir(fname):
             if not monitor:
@@ -115,7 +99,6 @@ def main():
                     return
                 kwargs.pop('max_running_time')
                 convert_many_files(flist, **kwargs)
-                combine_all_htmls(kwargs["target_dir"])
             else:
                 logger.info(f"Monitoring the directory... {fname}")
                 monitor_and_process(fname, **kwargs)
@@ -125,7 +108,7 @@ def main():
     elif command == "combine":
         combine_all_htmls(kwargs["target_dir"])
     elif command == "serve":
-        run_server(kwargs["target_dir"], kwargs["port"])
+        run_flask_server(kwargs["target_dir"], kwargs["port"], kwargs["host"])
     else:
         parser.print_help()
 
