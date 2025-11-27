@@ -1,20 +1,24 @@
-import numpy as np
 import os
+from pathlib import Path
+
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")
+import json
+import logging
+import time
+import traceback
 from datetime import datetime
+from multiprocessing import Pool
+
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
-from multiprocessing import Pool
-import time
-import json
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from .html_utlits import convert_to_html
-import logging
-import traceback
 from pyxpcsviewer.xpcs_file import XpcsFile as XF
-import matplotlib.colors as mcolors
+
+from .html_utlits import convert_to_html
 
 colors = [
     [1.0, 1.0, 1.0, 0.6],  # White (first bin)
@@ -44,7 +48,7 @@ def rename_files(work_dir):
         os.rename("stability.png", "total_intensity_vs_time.png")
 
     # clean work_dir
-    basename_str = os.path.basename(work_dir)
+    basename_str = Path(work_dir).name
 
     for n in range(1024):
         g2_name = "g2_%04d.png" % n
@@ -70,8 +74,8 @@ def rename_files(work_dir):
 
 
 def check_exist(basename, target_dir):
-    fname_no_ext = os.path.splitext(basename)[0]
-    if os.path.isfile(os.path.join(target_dir, fname_no_ext + ".html")):
+    fname_no_ext = Path(basename).stem
+    if (Path(target_dir) / (fname_no_ext + ".html")).is_file():
         return True
     else:
         return False
@@ -99,13 +103,11 @@ def plot_stability(ql_sta, Iqp, intt, save_dir=".", dpi=240):
     ax[1].set_title("Intensity vs t")
     plt.tight_layout()
 
-    save_name = os.path.join(save_dir, "stability.png")
+    save_name = Path(save_dir) / "stability.png"
     plt.savefig(save_name, dpi=dpi)
     plt.close(fig)
 
-    img_description = {
-        "stability": os.path.join(os.path.basename(save_dir), "stability.png")
-    }
+    img_description = {"stability": str(Path(save_dir).name / Path("stability.png"))}
 
     return img_description
 
@@ -149,7 +151,6 @@ def plot_roi_mask(fig, ax, roi_mask, num_img, nophi=1):
 def plot_multitau_row(
     xf_obj, roi_mask, save_name, save_dir, num_img=4, dpi=240, q_index_offset=0
 ):
-
     figsize = (16, 12 / (num_img + 1))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
@@ -167,12 +168,12 @@ def plot_multitau_row(
             if shape[1] == 1:
                 color = "b"
                 title = xf_obj.get_qbin_label(qbin + 1)
-                label = f"qbin={qbin+1}"
+                label = f"qbin={qbin + 1}"
             else:
                 color = cmap(p / shape[1])
                 label_full = xf_obj.get_qbin_label(qbin + 1)
                 label_q = label_full.split(", ")[0]
-                label = f"{qbin+1}: " + label_full.split(", ")[1]
+                label = f"{qbin + 1}: " + label_full.split(", ")[1]
                 title = label_q
 
             g2_temp = xf_obj.g2[:, qbin]
@@ -195,14 +196,13 @@ def plot_multitau_row(
         bx.legend(loc="best", fontsize=6)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
+    plt.savefig(Path(save_dir) / save_name, dpi=dpi)
     plt.close(fig)
 
 
 def plot_twotime_row(
     deltat, x, label, roi_mask, save_name, save_dir, num_img=4, dpi=240
 ):
-
     figsize = (16, 12 / (num_img))
     fig, ax = plt.subplots(1, num_img + 1, figsize=figsize)
 
@@ -228,7 +228,7 @@ def plot_twotime_row(
         # ax[n + 1].set_title(label[n])
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, save_name), dpi=dpi)
+    plt.savefig(Path(save_dir) / save_name, dpi=dpi)
     plt.close(fig)
 
 
@@ -279,7 +279,7 @@ def plot_crop_mask_saxs(mask, saxs, dqmap, save_dir, dpi=120):
     fig.colorbar(im1, cax=cax1)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(save_dir, "saxs_mask.png"), dpi=dpi)
+    plt.savefig(Path(save_dir) / "saxs_mask.png", dpi=dpi)
     plt.close(fig)
 
     return mask, dqmap
@@ -315,7 +315,7 @@ def plot_multitau_correlation(xf_obj, save_dir, num_img, dpi=120):
             dpi=dpi,
             q_index_offset=st,
         )
-        img_list.append(os.path.join(os.path.basename(save_dir), save_name))
+        img_list.append(str(save_dir.name / Path(save_name)))
 
     return {"correlation_g2": img_list}
 
@@ -352,7 +352,7 @@ def plot_twotime_correlation(xf_obj, save_dir, num_img, dpi=120):
             dpi=dpi,
         )
 
-        img_list.append(os.path.join(os.path.basename(save_dir), save_name))
+        img_list.append(str(save_dir.name / Path(save_name)))
 
     return {"correlation_c2": img_list}
 
@@ -388,23 +388,23 @@ def hdf2web(
     absolute, then create_image_directory can be set to False.
     """
     t_start = time.perf_counter()
-    if fname is None or not os.path.isfile(fname):
+    if fname is None or not Path(fname).is_file():
         logger.error(f"check {fname}")
         return False
 
-    basename = os.path.basename(fname)
-    save_dir_rel = os.path.splitext(basename)[0]
+    basename = Path(fname).name
+    save_dir_rel = Path(basename).stem
     if create_image_directory:
-        save_dir = os.path.join(target_dir, save_dir_rel)
+        save_dir = Path(target_dir) / save_dir_rel
     else:
-        save_dir = target_dir
+        save_dir = Path(target_dir)
 
-    if not overwrite and os.path.isdir(save_dir):
+    if not overwrite and save_dir.is_dir():
         logger.info(f"skip job to avoid overwrite: [{basename}]")
         return False
 
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
+    if not save_dir.is_dir():
+        save_dir.mkdir(parents=True, exist_ok=True)
 
     xf = XF(fname)
 
@@ -413,7 +413,7 @@ def hdf2web(
     xf.mask = mask
     xf.dqmap = dqmap
 
-    html_dict = {"scattering": os.path.join(save_dir_rel, "saxs_mask.png")}
+    html_dict = {"scattering": str(Path(save_dir_rel) / "saxs_mask.png")}
 
     img_description = plot_stability(xf.sqlist, xf.Iqp, xf.Int_t, save_dir, dpi=dpi)
 
@@ -432,7 +432,7 @@ def hdf2web(
     metadata["start_time"] = xf.start_time
     metadata["plot_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open(os.path.join(save_dir, "metadata.json"), "w") as f:
+    with open(Path(save_dir) / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=4, cls=NpEncoder)
 
     html_dict.update({"metadata": metadata})
@@ -454,7 +454,7 @@ def hdf2web_safe(*args, **kwargs):
     try:
         x = hdf2web(*args, **kwargs)
     except Exception:
-        basename = os.path.basename(args[0])
+        basename = Path(args[0]).name
         logger.info(f"job failed: [{basename}]")
         traceback.print_exc()
     else:
@@ -467,7 +467,6 @@ def hdf2web_safe_wrap(args, kwargs):
 
 
 def convert_many_files(flist, num_workers=24, target_dir="html", **kwargs):
-
     args = list(zip(flist, [target_dir] * len(flist)))
     p = Pool(num_workers)
     # p.map(convert_hdf_webpage, flist)
