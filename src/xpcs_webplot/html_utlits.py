@@ -23,12 +23,16 @@ def copy_minipreview(target_folder):
 
 
 def convert_to_html(save_dir, data_dict):
-    outputfile = save_dir + ".html"
+    # outputfile = save_dir.with_suffix(".html")
+    outputfile = save_dir / "summary.html"
     title = os.path.basename(save_dir)
 
     loader = jinja2.FileSystemLoader(template_path)
-    subs = jinja2.Environment(loader=loader).get_template(
-            "single.html").render(title=title, mydata=data_dict)
+    subs = (
+        jinja2.Environment(loader=loader)
+        .get_template("single.html")
+        .render(title=title, mydata=data_dict)
+    )
 
     # lets write the substitution to a file
     with open(outputfile, "w") as f:
@@ -50,12 +54,12 @@ def convert_single_folder(target_folder):
     files.sort()
     html_dict["correlation"] = files
     with open(os.path.join(realpah, "metadata.json"), "r") as f:
-        html_dict["metadata"] = json.load(f) 
+        html_dict["metadata"] = json.load(f)
     convert_to_html(save_dir, html_dict)
     return
 
 
-def combine_all_htmls(target_folder="html"): 
+def combine_all_htmls(target_folder="html"):
     targets = ["index.html", "preview.html", "iframe.html"]
     files = os.listdir(target_folder)
     htmls = [x for x in files if x.endswith(".html")]
@@ -67,22 +71,29 @@ def combine_all_htmls(target_folder="html"):
             continue
         short_label = os.path.splitext(x)[0]
         short_name = short_label.rstrip("_results")
-        json_fname = os.path.join(target_folder, short_label, "metadata.json") 
+        json_fname = os.path.join(target_folder, short_label, "metadata.json")
         try:
             with open(json_fname, "r") as f:
                 meta = json.load(f)
-                v1, v2, v3 = meta["analysis_type"], meta["start_time"], meta["plot_time"]
+                v1, v2, v3 = (
+                    meta["analysis_type"],
+                    meta["start_time"],
+                    meta["plot_time"],
+                )
         except Exception as e:
             logger.error(str(e))
         else:
-            html_info.append([ short_name, x, v1, v2, v3])
+            html_info.append([short_name, x, v1, v2, v3])
     html_info.sort(key=lambda x: x[3], reverse=True)
     tfiles = ["combined.html"]
 
     loader = jinja2.FileSystemLoader(template_path)
     for target, template in zip(targets, tfiles):
-        subs = jinja2.Environment(
-            loader=loader).get_template(template).render(mydata=html_info)
+        subs = (
+            jinja2.Environment(loader=loader)
+            .get_template(template)
+            .render(mydata=html_info)
+        )
         # lets write the substitution to a file
         with open(os.path.join(target_folder, target), "w") as f:
             f.write(subs)
