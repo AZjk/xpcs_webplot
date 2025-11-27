@@ -1,6 +1,6 @@
 import glob
 import os
-from .plot_images import hdf2web_safe as hdf2web, hdf2web_safe_wrap
+from .converter import convert_xpcs_result_safe, convert_xpcs_result_wrap
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def convert_many_files(flist, num_workers=24, **kwargs):
 
     from multiprocessing import Pool
     p = Pool(min(num_workers, tot_num))
-    p.starmap(hdf2web_safe_wrap, full_input)
+    p.starmap(convert_xpcs_result_wrap, full_input)
 
 
 def convert_folder(folder, **kwargs):
@@ -29,7 +29,7 @@ def convert_folder(folder, **kwargs):
 
 
 def convert_one_file(fname=None, **kwargs):
-    return hdf2web(fname, **kwargs)
+    return convert_xpcs_result_safe(fname, **kwargs)
 
 
 
