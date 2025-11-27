@@ -196,7 +196,7 @@
       <tbody id="results-body">
         {% for item in data %}
         <tr>
-          <td><a href="/view/{{ item.folder }}">{{ item.name }}</a></td>
+          <td><a href="/results/{{ item.folder }}/summary.html">{{ item.name }}</a></td>
           <td>{{ item.analysis_type }}</td>
           <td>{{ item.start_time }}</td>
           <td>{{ item.plot_time }}</td>
@@ -244,7 +244,7 @@
         
         tbody.innerHTML = data.map(item => `
           <tr>
-            <td><a href="/view/${item.folder}">${item.name}</a></td>
+            <td><a href="/results/${item.folder}/summary.html">${item.name}</a></td>
             <td>${item.analysis_type}</td>
             <td>${item.start_time}</td>
             <td>${item.plot_time}</td>

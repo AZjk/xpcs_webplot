@@ -29,9 +29,18 @@ def get_html_data(html_folder):
         # Skip if not a directory or if it's the results subfolder
         if not os.path.isdir(item_path) or item == DEFAULT_RESULTS_SUBFOLDER:
             continue
+        
+        # Check if summary.html exists in this directory
+        summary_html = os.path.join(item_path, "summary.html")
+        if not os.path.exists(summary_html):
+            continue
             
-        # Look for metadata.json in the directory
-        json_fname = os.path.join(item_path, "metadata.json")
+        # Look for metadata.json in the metadata subdirectory (new structure)
+        json_fname = os.path.join(item_path, "metadata", "metadata.json")
+        
+        # Fallback to old structure (metadata.json in root)
+        if not os.path.exists(json_fname):
+            json_fname = os.path.join(item_path, "metadata.json")
         
         if os.path.exists(json_fname):
             try:
@@ -43,10 +52,11 @@ def get_html_data(html_folder):
                 start_time = meta.get("start_time", "")
                 plot_time = meta.get("plot_time", "")
                 
-                # Create entry
+                # Create entry with summary.html path
                 html_info.append({
                     'name': item.rstrip("_results"),
                     'folder': item,
+                    'summary_html': f"{item}/summary.html",
                     'analysis_type': analysis_type,
                     'start_time': start_time,
                     'plot_time': plot_time,
@@ -54,6 +64,17 @@ def get_html_data(html_folder):
                 })
             except Exception as e:
                 logger.error(f"Error reading metadata for {item}: {str(e)}")
+        else:
+            # If no metadata found, still include the folder with summary.html
+            html_info.append({
+                'name': item.rstrip("_results"),
+                'folder': item,
+                'summary_html': f"{item}/summary.html",
+                'analysis_type': "Unknown",
+                'start_time': "",
+                'plot_time': "",
+                'metadata': {}
+            })
     
     # Sort by start_time (newest first)
     html_info.sort(key=lambda x: x['start_time'], reverse=True)
@@ -151,6 +172,40 @@ def create_app(html_folder=DEFAULT_HTML_FOLDER):
         data_dict['correlation_c2'] = correlation_c2
         
         return render_template('flask_single.html', mydata=data_dict)
+
+    @flask_app.route('/results/<folder_name>/summary.html')
+    def serve_summary(folder_name):
+        """Serve summary.html from a specific results folder."""
+        # Get absolute path to HTML folder
+        html_folder_abs = os.path.abspath(flask_app.config['HTML_FOLDER'])
+        folder_path = os.path.join(html_folder_abs, folder_name)
+        summary_path = os.path.join(folder_path, 'summary.html')
+        
+        logger.info(f"Attempting to serve summary from: {summary_path}")
+        logger.info(f"File exists: {os.path.exists(summary_path)}")
+        logger.info(f"HTML_FOLDER (abs): {html_folder_abs}")
+        logger.info(f"folder_name: {folder_name}")
+        
+        if not os.path.exists(summary_path):
+            return f"Summary not found at: {summary_path}", 404
+        
+        # Use send_file with absolute path
+        from flask import send_file
+        return send_file(summary_path)
+
+    @flask_app.route('/results/<folder_name>/<path:filepath>')
+    def serve_result_files(folder_name, filepath):
+        """Serve static files (images, etc.) from within a specific results folder."""
+        # Get absolute path to the result folder
+        html_folder_abs = os.path.abspath(flask_app.config['HTML_FOLDER'])
+        folder_path = os.path.join(html_folder_abs, folder_name)
+        
+        # Security check: ensure the folder exists and is a directory
+        if not os.path.exists(folder_path) or not os.path.isdir(folder_path):
+            return "Folder not found", 404
+        
+        # Serve the file from the result folder
+        return send_from_directory(folder_path, filepath)
 
     @flask_app.route('/static/<path:filename>')
     def serve_static(filename):
