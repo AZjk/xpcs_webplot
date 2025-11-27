@@ -206,9 +206,11 @@ def save_metadata(metadata, top_dir):
     save_as_txt : Save metadata as a text file
     save_as_xlsx : Save metadata as an Excel file
     """
-    save_as_json(metadata, top_dir)
-    save_as_txt(metadata, top_dir)
-    save_as_xlsx(metadata, top_dir)
+    meta_dir = Path(top_dir) / "metadata"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    save_as_json(metadata, meta_dir)
+    save_as_txt(metadata, meta_dir)
+    save_as_xlsx(metadata, meta_dir)
 
 
 def test():
