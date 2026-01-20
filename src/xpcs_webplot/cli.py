@@ -219,6 +219,18 @@ def main():
         default=86400 * 7,
         help="Maximum time in seconds to run in monitor mode before auto-stopping (default: 604800 = 7 days)"
     )
+    plot_command.add_argument(
+        "--save-result",
+        action="store_true",
+        default=True,
+        help="Save XPCS result data files (SAXS, g2, twotime) to disk (default: True)"
+    )
+    plot_command.add_argument(
+        "--no-save-result",
+        dest="save_result",
+        action="store_false",
+        help="Skip saving XPCS result data files, only generate plots and HTML"
+    )
     
     combine_command = subparsers.add_parser(
         "combine",

@@ -135,6 +135,7 @@ def convert_xpcs_result(
     overwrite=False,
     image_only=False,
     create_image_directory=True,
+    save_result=True,
 ):
     """
     Convert XPCS HDF file to web-viewable format with plots and data exports.
@@ -165,6 +166,10 @@ def convert_xpcs_result(
         If True, create a subdirectory based on the HDF filename. Useful when
         processing multiple files to the same target_dir to avoid overwrites.
         If target_dir is absolute, this can be set to False. Default is True.
+    save_result : bool, optional
+        If True, save XPCS result data files (SAXS, g2, twotime) to disk.
+        If False, skip saving data files and only generate plots and HTML.
+        Default is True.
 
     Returns
     -------
@@ -211,7 +216,8 @@ def convert_xpcs_result(
     t0 = time.perf_counter()
     xf_obj = XF(fname)
     try:
-        save_xpcs_result(xf_obj, top_dir)
+        if save_result:
+            save_xpcs_result(xf_obj, top_dir)
         plot_xpcs_result(
             xf_obj,
             top_dir,
