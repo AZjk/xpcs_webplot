@@ -15,16 +15,90 @@ DEFAULT_HTML_FOLDER = 'html'
 DEFAULT_RESULTS_SUBFOLDER = 'results'
 
 
-def get_html_data(html_folder):
-    """Extract metadata from all HTML folders."""
-    html_info = []
+def get_subdirectories(html_folder):
+    """Get list of subdirectories that contain result folders.
+    
+    This function distinguishes between:
+    - Result folders (directories with summary.html directly inside)
+    - Subdirectories (directories containing result folders)
+    """
+    subdirs = []
     
     if not os.path.exists(html_folder):
-        return html_info
+        return subdirs
     
-    # Get all directories in the html folder
     for item in os.listdir(html_folder):
         item_path = os.path.join(html_folder, item)
+        
+        # Skip if not a directory
+        if not os.path.isdir(item_path):
+            continue
+        
+        # Skip if this is itself a result folder (has summary.html directly)
+        if os.path.exists(os.path.join(item_path, "summary.html")):
+            continue
+        
+        # Skip the special results subfolder
+        if item == DEFAULT_RESULTS_SUBFOLDER:
+            continue
+        
+        # Check if this subdirectory contains any result folders
+        has_results = False
+        for subitem in os.listdir(item_path):
+            subitem_path = os.path.join(item_path, subitem)
+            if os.path.isdir(subitem_path):
+                summary_html = os.path.join(subitem_path, "summary.html")
+                if os.path.exists(summary_html):
+                    has_results = True
+                    break
+        
+        if has_results:
+            # Count the number of result folders
+            result_count = 0
+            for subitem in os.listdir(item_path):
+                subitem_path = os.path.join(item_path, subitem)
+                if os.path.isdir(subitem_path):
+                    summary_html = os.path.join(subitem_path, "summary.html")
+                    if os.path.exists(summary_html):
+                        result_count += 1
+            
+            subdirs.append({
+                'name': item,
+                'path': item,
+                'result_count': result_count
+            })
+    
+    subdirs.sort(key=lambda x: x['name'])
+    return subdirs
+
+
+def get_html_data(html_folder, subdir=None):
+    """Extract metadata from all HTML folders.
+    
+    Args:
+        html_folder: Base HTML folder path
+        subdir: Optional subdirectory to scan within html_folder
+    
+    Returns:
+        Dictionary with 'type', 'subdirs', and 'results' keys
+    """
+    # Determine the actual folder to scan
+    scan_folder = os.path.join(html_folder, subdir) if subdir else html_folder
+    
+    html_info = []
+    
+    if not os.path.exists(scan_folder):
+        return {'type': 'flat', 'subdirs': [], 'results': html_info}
+    
+    # If no subdir specified, check if we have subdirectories with results
+    if not subdir:
+        subdirs = get_subdirectories(html_folder)
+        if subdirs:
+            return {'type': 'subdirs', 'subdirs': subdirs, 'results': []}
+    
+    # Get all directories in the scan folder
+    for item in os.listdir(scan_folder):
+        item_path = os.path.join(scan_folder, item)
         
         # Skip if not a directory or if it's the results subfolder
         if not os.path.isdir(item_path) or item == DEFAULT_RESULTS_SUBFOLDER:
@@ -42,6 +116,12 @@ def get_html_data(html_folder):
         if not os.path.exists(json_fname):
             json_fname = os.path.join(item_path, "metadata.json")
         
+        # Construct the folder path relative to html_folder
+        if subdir:
+            folder_path = f"{subdir}/{item}"
+        else:
+            folder_path = item
+        
         if os.path.exists(json_fname):
             try:
                 with open(json_fname, "r") as f:
@@ -55,8 +135,8 @@ def get_html_data(html_folder):
                 # Create entry with summary.html path
                 html_info.append({
                     'name': item.rstrip("_results"),
-                    'folder': item,
-                    'summary_html': f"{item}/summary.html",
+                    'folder': folder_path,
+                    'summary_html': f"{folder_path}/summary.html",
                     'analysis_type': analysis_type,
                     'start_time': start_time,
                     'plot_time': plot_time,
@@ -68,8 +148,8 @@ def get_html_data(html_folder):
             # If no metadata found, still include the folder with summary.html
             html_info.append({
                 'name': item.rstrip("_results"),
-                'folder': item,
-                'summary_html': f"{item}/summary.html",
+                'folder': folder_path,
+                'summary_html': f"{folder_path}/summary.html",
                 'analysis_type': "Unknown",
                 'start_time': "",
                 'plot_time': "",
@@ -79,7 +159,7 @@ def get_html_data(html_folder):
     # Sort by start_time (newest first)
     html_info.sort(key=lambda x: x['start_time'], reverse=True)
     
-    return html_info
+    return {'type': 'flat', 'subdirs': [], 'results': html_info}
 
 
 def create_app(html_folder=DEFAULT_HTML_FOLDER):
@@ -94,12 +174,16 @@ def create_app(html_folder=DEFAULT_HTML_FOLDER):
     def index():
         """Main index page with dynamic content."""
         html_data = get_html_data(flask_app.config['HTML_FOLDER'])
-        return render_template('flask_index.html', data=html_data)
+        return render_template('flask_index.html', 
+                             data_type=html_data['type'],
+                             subdirs=html_data['subdirs'],
+                             results=html_data['results'])
 
     @flask_app.route('/api/data')
     def api_data():
         """API endpoint for getting data with filtering."""
         html_data = get_html_data(flask_app.config['HTML_FOLDER'])
+        results = html_data['results']
         
         # Apply filters if provided
         filename_filter = request.args.get('filename', '').lower()
@@ -107,15 +191,29 @@ def create_app(html_folder=DEFAULT_HTML_FOLDER):
         
         if filename_filter or analysis_filter:
             filtered_data = []
-            for item in html_data:
+            for item in results:
                 if filename_filter and filename_filter not in item['name'].lower():
                     continue
                 if analysis_filter and analysis_filter not in item['analysis_type'].lower():
                     continue
                 filtered_data.append(item)
-            html_data = filtered_data
+            results = filtered_data
         
-        return jsonify(html_data)
+        return jsonify(results)
+
+    @flask_app.route('/subdir/<subdir_name>')
+    def view_subdir(subdir_name):
+        """View combined summary page for a subdirectory."""
+        html_data = get_html_data(flask_app.config['HTML_FOLDER'], subdir=subdir_name)
+        results = html_data['results']
+        
+        if not results:
+            return f"No results found in subdirectory: {subdir_name}", 404
+        
+        return render_template('flask_subdir.html', 
+                             subdir_name=subdir_name,
+                             results=results)
+
 
     @flask_app.route('/view/<folder_name>')
     def view_result(folder_name):
@@ -173,7 +271,7 @@ def create_app(html_folder=DEFAULT_HTML_FOLDER):
         
         return render_template('flask_single.html', mydata=data_dict)
 
-    @flask_app.route('/results/<folder_name>/summary.html')
+    @flask_app.route('/results/<path:folder_name>/summary.html')
     def serve_summary(folder_name):
         """Serve summary.html from a specific results folder."""
         # Get absolute path to HTML folder
@@ -193,7 +291,7 @@ def create_app(html_folder=DEFAULT_HTML_FOLDER):
         from flask import send_file
         return send_file(summary_path)
 
-    @flask_app.route('/results/<folder_name>/<path:filepath>')
+    @flask_app.route('/results/<path:folder_name>/<path:filepath>')
     def serve_result_files(folder_name, filepath):
         """Serve static files (images, etc.) from within a specific results folder."""
         # Get absolute path to the result folder
