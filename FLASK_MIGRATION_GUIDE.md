@@ -59,7 +59,7 @@ To organize result folders into a subfolder:
 
 ```bash
 # Run the migration script
-python -m xpcs_webplot.migrate_to_flask --html-folder html --create-subfolder
+python -m xpcs_webplot.prepare_html_for_serving --html-folder html --create-subfolder
 
 # Then run the server pointing to the results subfolder
 xpcs_webplot_server --html-folder html/results

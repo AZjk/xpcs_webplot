@@ -32,7 +32,7 @@ dev = ["pytest>=3", "pytest-cov", "flake8", "black", "mypy", "pre-commit"]
 [project.scripts]
 xpcs_webplot = "xpcs_webplot.cli:main"
 xpcs_webplot_server = "xpcs_webplot.flask_app:main"
-xpcs_webplot_migrate = "xpcs_webplot.migrate_to_flask:main"
+xpcs_webplot_prepare = "xpcs_webplot.prepare_html_for_serving:main"
 
 [project.urls]
 Homepage = "https://github.com/AZjk/xpcs_webplot"
