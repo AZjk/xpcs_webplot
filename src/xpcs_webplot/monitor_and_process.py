@@ -12,9 +12,6 @@ import h5py
 logger = logging.getLogger(__name__)
 
 
-logger = logging.getLogger(__name__)
-
-
 class HDF5FileHandler(FileSystemEventHandler):
     """
     File system event handler for monitoring and processing HDF5 files.
@@ -70,6 +67,7 @@ class HDF5FileHandler(FileSystemEventHandler):
         self.stop_flag = stop_flag
         self.max_wait = max_wait  # Max wait time for file to be fully written
         self.check_interval = check_interval  # Interval to check file size stability
+        self.failed_files = []  # Track files that failed stability check
 
     def on_created(self, event):
         """
@@ -165,6 +163,7 @@ class HDF5FileHandler(FileSystemEventHandler):
         else:
             logger.warning(
                 f"[Producer] Skipping {file_path}: File may be incomplete or locked.")
+            self.failed_files.append(file_path)
 
     def wait_for_file_stability(self, file_path):
         """
@@ -193,6 +192,7 @@ class HDF5FileHandler(FileSystemEventHandler):
         """
         t0 = time.time()
         prev_size = -1
+        stable_count = 0  # Track consecutive stable checks
 
         while time.time() - t0 < self.max_wait:
             if not os.path.exists(file_path):
@@ -201,15 +201,21 @@ class HDF5FileHandler(FileSystemEventHandler):
 
             try:
                 curr_size = os.path.getsize(file_path)
-                if curr_size == prev_size:
-                    # Try opening the file to confirm it's readable
-                    with h5py.File(file_path, "r"):
-                        return True  # File is ready!
+                if curr_size == prev_size and prev_size > 0:
+                    stable_count += 1
+                    # Require at least 2 consecutive stable checks
+                    if stable_count >= 2:
+                        # Try opening the file to confirm it's readable
+                        with h5py.File(file_path, "r"):
+                            return True  # File is ready!
+                else:
+                    stable_count = 0  # Reset if size changed
                 prev_size = curr_size
                 time.sleep(self.check_interval)
 
-            except (OSError, BlockingIOError):
-                # File is likely still being written
+            except (OSError, BlockingIOError, Exception):
+                # File is likely still being written or not a valid HDF5 file
+                stable_count = 0
                 time.sleep(self.check_interval)
         return False  # Timed out, file is still unstable
 
@@ -232,7 +238,8 @@ def producer(folder_path, task_queue, stop_flag):
 
     Returns
     -------
-    None
+    HDF5FileHandler
+        The event handler instance containing failed_files list.
 
     Notes
     -----
@@ -259,9 +266,18 @@ def producer(folder_path, task_queue, stop_flag):
 
     observer.stop()
     observer.join()
+    
+    # Log failed files summary
+    if event_handler.failed_files:
+        logger.warning(
+            f"[Producer] {len(event_handler.failed_files)} file(s) failed stability check:")
+        for failed_file in event_handler.failed_files:
+            logger.warning(f"  - {failed_file}")
+    
+    return event_handler
 
 
-def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
+def consumer(consumer_id, task_queue, stop_flag, stats_dict, **analysis_kwargs):
     """
     Process HDF5 files from the queue.
 
@@ -276,6 +292,8 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
         Queue from which to retrieve files for processing.
     stop_flag : multiprocessing.Value
         Shared boolean flag to signal when to stop processing.
+    stats_dict : multiprocessing.Manager.dict
+        Shared dictionary for tracking processing statistics.
     **analysis_kwargs : dict
         Keyword arguments to pass to convert_one_file, including:
         - target_dir : Output directory for results
@@ -300,6 +318,9 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
     convert_one_file : Converts individual HDF files
     combine_all_htmls : Updates combined HTML index
     """
+    processed = 0
+    failed = 0
+    
     while not stop_flag.value:
         try:
             file_path = task_queue.get(timeout=5)  # Timeout to avoid hanging
@@ -307,15 +328,28 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
                 break
 
             logger.info(f"[Consumer-{consumer_id}] Processing: {file_path}")
-            convert_one_file(file_path, **analysis_kwargs)
-            combine_all_htmls(analysis_kwargs["target_dir"])
+            try:
+                convert_one_file(file_path, **analysis_kwargs)
+                combine_all_htmls(analysis_kwargs["target_dir"])
+                processed += 1
+            except Exception as e:
+                logger.error(
+                    f"[Consumer-{consumer_id}] Failed to process {file_path}: {e}",
+                    exc_info=True)
+                failed += 1
 
         except multiprocessing.queues.Empty:
             # logger.info(
             #     f"[Consumer-{consumer_id}] No tasks available, waiting...")
             time.sleep(1)
 
-    logger.info(f"[Consumer-{consumer_id}] Stop flag set. Exiting.")
+    # Update shared statistics
+    stats_dict[f'consumer_{consumer_id}_processed'] = processed
+    stats_dict[f'consumer_{consumer_id}_failed'] = failed
+    
+    logger.info(
+        f"[Consumer-{consumer_id}] Stop flag set. Exiting. "
+        f"Processed: {processed}, Failed: {failed}")
 
 
 def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **analysis_kwargs):
@@ -379,6 +413,10 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     # Shared stop flag
     # 'b' means boolean (True/False)
     stop_flag = multiprocessing.Value('b', False)
+    
+    # Shared statistics dictionary
+    manager = multiprocessing.Manager()
+    stats_dict = manager.dict()
 
     # Start Producer Process
     producer_process = multiprocessing.Process(
@@ -391,7 +429,7 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     for i in range(num_workers):
         p = multiprocessing.Process(
             target=consumer, args=(
-                i, task_queue, stop_flag), kwargs=analysis_kwargs
+                i, task_queue, stop_flag, stats_dict), kwargs=analysis_kwargs
         )
         p.start()
         consumer_processes.append(p)
@@ -418,4 +456,17 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     for p in consumer_processes:
         p.join()
 
-    logger.info("[Main] All workers stopped. Exiting.")
+    # Calculate and log final statistics
+    total_processed = sum(v for k, v in stats_dict.items() if k.endswith('_processed'))
+    total_failed = sum(v for k, v in stats_dict.items() if k.endswith('_failed'))
+    elapsed_time = time.time() - start_time
+    
+    logger.info("[Main] All workers stopped. Monitoring session summary:")
+    logger.info(f"  - Total runtime: {elapsed_time:.1f} seconds ({elapsed_time/3600:.2f} hours)")
+    logger.info(f"  - Files successfully processed: {total_processed}")
+    logger.info(f"  - Files failed during processing: {total_failed}")
+    logger.info(f"  - Total files attempted: {total_processed + total_failed}")
+    if total_processed + total_failed > 0:
+        success_rate = (total_processed / (total_processed + total_failed)) * 100
+        logger.info(f"  - Success rate: {success_rate:.1f}%")
+

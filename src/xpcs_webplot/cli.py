@@ -141,7 +141,7 @@ def main():
                               help="whether to monitor the folder for new files")
 
     plot_command.add_argument("--num-workers", type=int, default=8,
-                              help="whether to monitor the folder for new files")
+                              help="number of parallel worker processes for file conversion")
     plot_command.add_argument("--max-running-time", type=int, default=86400 * 7,
                               help="maximum running time in seconds")
     
@@ -177,9 +177,13 @@ def main():
                 if len(flist) == 0:
                     logger.error(f"No hdf files found in {fname}")
                     return
-                kwargs.pop('max_running_time')
+                kwargs.pop('max_running_time', None)
                 convert_many_files(flist, **kwargs)
             else:
+                # Validate directory is accessible before starting monitor
+                if not os.access(fname, os.R_OK):
+                    logger.error(f"Directory is not readable: {fname}")
+                    return
                 logger.info(f"Monitoring the directory... {fname}")
                 monitor_and_process(fname, **kwargs)
         else:
