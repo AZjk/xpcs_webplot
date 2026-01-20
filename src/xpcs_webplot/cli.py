@@ -113,49 +113,174 @@ def main():
     monitor_and_process : Monitor directory for new files
     run_flask_server : Start Flask web server
     """
-    parser = argparse.ArgumentParser(description="Process some integers.")
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    parser = argparse.ArgumentParser(
+        prog="xpcs-webplot",
+        description=(
+            "XPCS WebPlot - Convert XPCS HDF5 result files to interactive web visualizations. "
+            "Generate HTML pages with plots from X-ray Photon Correlation Spectroscopy data, "
+            "monitor directories for new files, combine results, and serve them via Flask web server."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  xpcs-webplot plot data.hdf --target-dir output\n"
+            "  xpcs-webplot plot /data/dir --monitor --num-workers 8\n"
+            "  xpcs-webplot combine output\n"
+            "  xpcs-webplot serve output --port 8080\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    subparsers = parser.add_subparsers(
+        dest="command",
+        title="commands",
+        description="Choose one of the following commands:",
+        help="Command to execute"
+    )
 
-    plot_command = subparsers.add_parser("plot", help="plot images from hdf result files")
-    plot_command.add_argument("fname", type=str,
-                        help="the hdf filename or the folder that the results are stored")
+    plot_command = subparsers.add_parser(
+        "plot",
+        help="Convert XPCS HDF5 files to web-viewable HTML with plots",
+        description=(
+            "Convert XPCS HDF5 result files into interactive HTML pages with plots. "
+            "Can process a single file, all HDF files in a directory, or continuously "
+            "monitor a directory for new files and process them automatically."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  Single file:    xpcs-webplot plot data.hdf --target-dir output\n"
+            "  Directory:      xpcs-webplot plot /data/dir --target-dir output --num-workers 8\n"
+            "  Monitor mode:   xpcs-webplot plot /data/dir --monitor --target-dir output\n"
+            "  High-res plots: xpcs-webplot plot data.hdf --dpi 300 --num-img 6\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    plot_command.add_argument(
+        "fname",
+        type=str,
+        help="Path to HDF5 file or directory containing HDF files to process"
+    )
 
-    plot_command.add_argument("--target-dir", type=str, nargs="?", default="/tmp",
-                        help="output directory")
+    plot_command.add_argument(
+        "--target-dir",
+        type=str,
+        nargs="?",
+        default="/tmp",
+        help="Output directory for generated HTML and image files (default: /tmp)"
+    )
 
-    plot_command.add_argument("--image-only", action="store_true",
-                              help="only generate images, no html")
+    plot_command.add_argument(
+        "--image-only",
+        action="store_true",
+        help="Generate only plot images without HTML summary pages"
+    )
 
-    plot_command.add_argument("--num-img", type=int, nargs="?", default=4,
-                        help="number of images per row")
+    plot_command.add_argument(
+        "--num-img",
+        type=int,
+        nargs="?",
+        default=4,
+        help="Number of plot images to display per row in HTML output (default: 4)"
+    )
 
-    plot_command.add_argument("--dpi", type=int, nargs="?", default=240,
-                        help=("dpi controls the image resolution."
-                              "For 4K monitors, dpi can be set to 240 to "
-                              "produce images with 3840 horizontal pixels."))
+    plot_command.add_argument(
+        "--dpi",
+        type=int,
+        nargs="?",
+        default=240,
+        help=(
+            "Image resolution in dots per inch. Higher values produce sharper images. "
+            "For 4K monitors, use 240 for 3840px width. For HD, use 120-150. (default: 240)"
+        )
+    )
 
-    plot_command.add_argument("--overwrite", action="store_true",
-                              help="overwrite flag")
+    plot_command.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Overwrite existing output files if they already exist"
+    )
 
-    plot_command.add_argument("--monitor", action="store_true",
-                              help="whether to monitor the folder for new files")
+    plot_command.add_argument(
+        "--monitor",
+        action="store_true",
+        help=(
+            "Monitor the directory continuously for new HDF files and process them automatically. "
+            "Only works when fname is a directory. Press Ctrl+C to stop monitoring."
+        )
+    )
 
-    plot_command.add_argument("--num-workers", type=int, default=8,
-                              help="number of parallel worker processes for file conversion")
-    plot_command.add_argument("--max-running-time", type=int, default=86400 * 7,
-                              help="maximum running time in seconds")
+    plot_command.add_argument(
+        "--num-workers",
+        type=int,
+        default=8,
+        help="Number of parallel worker processes for batch file conversion (default: 8)"
+    )
+    plot_command.add_argument(
+        "--max-running-time",
+        type=int,
+        default=86400 * 7,
+        help="Maximum time in seconds to run in monitor mode before auto-stopping (default: 604800 = 7 days)"
+    )
     
-    combine_command = subparsers.add_parser("combine", help="combine htmls in one")
-    combine_command.add_argument("target_dir", type=str, nargs="?",
-                                help="the plot directory to combine")
+    combine_command = subparsers.add_parser(
+        "combine",
+        help="Combine multiple HTML results into a single index page",
+        description=(
+            "Generate a combined index page that aggregates all individual HTML result files "
+            "in the specified directory. This creates a master summary page for easy navigation "
+            "across multiple XPCS analysis results."
+        ),
+        epilog=(
+            "Example:\n"
+            "  xpcs-webplot combine /path/to/output\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    combine_command.add_argument(
+        "target_dir",
+        type=str,
+        nargs="?",
+        help="Directory containing HTML files to combine into a single index page"
+    )
     
-    serve_command = subparsers.add_parser("serve", help="serve the htmls with Flask web server")
-    serve_command.add_argument("target_dir", type=str, nargs="?", default=".",
-                               help="the HTML folder containing XPCS results")
-    serve_command.add_argument("--port", type=int, help="port to run the Flask server",
-                              default=5000)
-    serve_command.add_argument("--host", type=str, default="0.0.0.0",
-                               help="host to run the Flask server on (default: 0.0.0.0)")
+    serve_command = subparsers.add_parser(
+        "serve",
+        help="Start Flask web server to browse and view HTML results interactively",
+        description=(
+            "Launch a Flask web server that provides an interactive interface for browsing "
+            "and viewing XPCS analysis results. The server supports subdirectory navigation "
+            "and displays combined summaries for easy data exploration."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  Local access only:  xpcs-webplot serve output --host 127.0.0.1 --port 5000\n"
+            "  Network access:     xpcs-webplot serve output --host 0.0.0.0 --port 8080\n"
+            "\n"
+            "After starting, access the server at http://localhost:<port>\n"
+            "Press Ctrl+C to stop the server.\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    serve_command.add_argument(
+        "target_dir",
+        type=str,
+        nargs="?",
+        default=".",
+        help="Directory containing HTML result files to serve (default: current directory)"
+    )
+    serve_command.add_argument(
+        "--port",
+        type=int,
+        default=5000,
+        help="Port number for the Flask server (default: 5000)"
+    )
+    serve_command.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help=(
+            "Host address to bind the server. Use 0.0.0.0 for network access or "
+            "127.0.0.1 for localhost only (default: 0.0.0.0)"
+        )
+    )
     
     kwargs = vars(parser.parse_args())
     logger.info("|".join([f"{k}:{v}" for k, v in kwargs.items()]))
