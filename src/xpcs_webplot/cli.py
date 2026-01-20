@@ -70,7 +70,7 @@ def main():
                                 help="the plot directory to combine")
     
     serve_command = subparsers.add_parser("serve", help="serve the htmls with Flask web server")
-    serve_command.add_argument("--target-dir", type=str, default=".",
+    serve_command.add_argument("target_dir", type=str, nargs="?", default=".",
                                help="the HTML folder containing XPCS results")
     serve_command.add_argument("--port", type=int, help="port to run the Flask server",
                               default=5000)
