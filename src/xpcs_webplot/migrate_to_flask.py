@@ -17,11 +17,52 @@ logger = logging.getLogger(__name__)
 
 def migrate_html_structure(html_folder='html', create_results_subfolder=False):
     """
-    Migrate the HTML folder structure for Flask compatibility.
+    Migrate HTML folder structure from static to Flask-compatible format.
+
+    Removes old static HTML files and optionally reorganizes result directories
+    into a subfolder structure for better organization with Flask serving.
+
+    Parameters
+    ----------
+    html_folder : str, optional
+        Path to the HTML folder to migrate. Default is 'html'.
+    create_results_subfolder : bool, optional
+        If True, move result directories to a 'results' subfolder.
+        If False, keep results in the root HTML folder. Default is False.
+
+    Returns
+    -------
+    bool
+        True if migration was successful, False if HTML folder doesn't exist.
+
+    Notes
+    -----
+    The function performs the following operations:
+    1. Removes old static files:
+       - index.html, preview.html, iframe.html
+       - jquery.minipreview.css, jquery.minipreview.js
+    2. If create_results_subfolder is True:
+       - Creates a 'results' subfolder
+       - Moves all result directories (identified by metadata.json) to subfolder
+    3. Cleans up any remaining HTML files in the root
+
+    After migration, use the Flask server to view results:
+    - Without subfolder: xpcs_webplot_server --html-folder html
+    - With subfolder: xpcs_webplot_server --html-folder html/results
+
+    See Also
+    --------
+    run_flask_server : Start Flask server to view migrated results
+
+    Examples
+    --------
+    Migrate without creating subfolder:
+    >>> migrate_html_structure('output')
+    True
     
-    Args:
-        html_folder: Path to the HTML folder
-        create_results_subfolder: If True, move result folders to a 'results' subfolder
+    Migrate and organize into subfolder:
+    >>> migrate_html_structure('output', create_results_subfolder=True)
+    True
     """
     if not os.path.exists(html_folder):
         logger.error(f"HTML folder '{html_folder}' does not exist")
@@ -87,7 +128,39 @@ def migrate_html_structure(html_folder='html', create_results_subfolder=False):
 
 
 def main():
-    """Main entry point for migration script."""
+    """
+    Main entry point for the Flask migration script.
+
+    Parses command-line arguments and executes the HTML structure migration
+    to make XPCS webplot results compatible with Flask-based serving.
+
+    Returns
+    -------
+    None
+        Exits with code 1 if migration fails.
+
+    Notes
+    -----
+    Command-line arguments:
+    --html-folder : Path to HTML folder to migrate (default: 'html')
+    --create-subfolder : Move result directories to 'results' subfolder
+    --verbose, -v : Enable verbose logging output
+
+    See Also
+    --------
+    migrate_html_structure : The underlying migration function
+
+    Examples
+    --------
+    Basic migration:
+    $ python migrate_to_flask.py --html-folder output
+    
+    Migration with subfolder organization:
+    $ python migrate_to_flask.py --html-folder output --create-subfolder
+    
+    Verbose output:
+    $ python migrate_to_flask.py --html-folder output --verbose
+    """
     parser = argparse.ArgumentParser(
         description='Migrate XPCS WebPlot HTML structure for Flask compatibility')
     parser.add_argument('--html-folder', default='html',

@@ -18,7 +18,39 @@ logger = logging.getLogger(__name__)
 
 def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
     """
-    Run Flask server to serve the XPCS webplot results
+    Start Flask web server to serve XPCS webplot results.
+
+    Launches a Flask development server that provides a web interface for
+    browsing and viewing XPCS analysis results.
+
+    Parameters
+    ----------
+    html_folder : str, optional
+        Path to the folder containing HTML results to serve. Default is "." (current directory).
+    port : int, optional
+        Port number on which to run the Flask server. Default is 5000.
+    host : str, optional
+        Host address to bind the server to. Use "0.0.0.0" to make the server
+        accessible from other machines on the network, or "127.0.0.1" for
+        localhost only. Default is "0.0.0.0".
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The server runs in non-debug mode for production use. Press Ctrl+C to stop
+    the server.
+
+    See Also
+    --------
+    create_app : Flask application factory
+
+    Examples
+    --------
+    >>> run_flask_server('html', port=8080, host='127.0.0.1')
+    Starting XPCS WebPlot Flask server...
     """
     app = create_app(html_folder)
     
@@ -33,6 +65,54 @@ def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
 
 
 def main():
+    """
+    Main entry point for the XPCS webplot command-line interface.
+
+    Provides a command-line interface with three subcommands:
+    - plot: Convert XPCS HDF files to web-viewable format
+    - combine: Combine multiple HTML results into a single index
+    - serve: Start Flask web server to view results
+
+    Returns
+    -------
+    None or int
+        Returns None on success, or exits with error code on failure.
+
+    Notes
+    -----
+    The CLI supports the following commands:
+    
+    plot command:
+        Convert HDF files to web format with plots and HTML summaries.
+        Can process single files, directories, or monitor directories for new files.
+        
+    combine command:
+        Generate a combined index page for multiple HTML results.
+        
+    serve command:
+        Launch Flask web server to browse and view results interactively.
+
+    Examples
+    --------
+    Convert a single file:
+    $ xpcs-webplot plot data.hdf --target-dir output --dpi 300
+    
+    Convert all files in a directory:
+    $ xpcs-webplot plot /path/to/data --target-dir output --num-workers 8
+    
+    Monitor a directory for new files:
+    $ xpcs-webplot plot /path/to/data --monitor --target-dir output
+    
+    Serve results with Flask:
+    $ xpcs-webplot serve output --port 8080
+
+    See Also
+    --------
+    convert_one_file : Convert a single HDF file
+    convert_many_files : Convert multiple HDF files
+    monitor_and_process : Monitor directory for new files
+    run_flask_server : Start Flask web server
+    """
     parser = argparse.ArgumentParser(description="Process some integers.")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 

@@ -22,7 +22,48 @@ logger = logging.getLogger(__name__)
 
 
 def save_xpcs_result(xf_obj: XF, top_dir: Path):
-    """Save XPCS data to data directory in a simple text format."""
+    """
+    Save XPCS analysis results to text and image files.
+
+    Exports SAXS data, correlation functions, and twotime analysis results
+    from an XPCS file object to a structured directory format for web viewing
+    and further analysis.
+
+    Parameters
+    ----------
+    xf_obj : XpcsFile
+        XPCS file object containing analysis results.
+    top_dir : Path
+        Top-level directory where data will be saved. A 'data' subdirectory
+        will be created within this directory.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The function creates the following files in the data directory:
+    - saxs_1d.txt : 1D SAXS profile (q vs Intensity)
+    - saxs_1d_stability.txt : Time-resolved 1D SAXS profiles
+    - saxs_2d.tif : 2D SAXS pattern
+    
+    For Multitau analysis:
+    - g2.txt : Correlation functions
+    - g2_err.txt : Correlation function errors
+    - delays.txt : Delay times
+    - qbin_values.txt : q-bin values
+    
+    For Twotime analysis:
+    - c2_XXXX.tif : Twotime correlation maps (one per q-bin)
+    - c2_g2.txt : g2 from twotime analysis
+    - c2_g2_partials.txt : Segmented g2 from twotime analysis
+
+    See Also
+    --------
+    plot_xpcs_result : Generate plots from XPCS data
+    convert_xpcs_result : Main conversion function
+    """
     data_dir = top_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -96,10 +137,60 @@ def convert_xpcs_result(
     create_image_directory=True,
 ):
     """
-    create_image_directory: whether to create a image directory based on the
-    hdf filename. It"s useful when plot multiples of hdf files and use the
-    same target_dir, so that the images won"t be overwritten. If target_dir is
-    absolute, then create_image_directory can be set to False.
+    Convert XPCS HDF file to web-viewable format with plots and data exports.
+
+    Processes an XPCS analysis HDF file to generate plots, export data, and
+    create HTML summaries for web viewing.
+
+    Parameters
+    ----------
+    fname : str or Path, optional
+        Path to the HDF file to convert. Default is None.
+    target_dir : str, optional
+        Base output directory for generated files. A subdirectory named after
+        the HDF file (without extension) will be created within this directory.
+        Default is 'html'.
+    num_img : int, optional
+        Number of correlation function plots per row in the output. Default is 4.
+    dpi : int, optional
+        Resolution (dots per inch) for generated plots. Higher values produce
+        higher quality images but larger file sizes. Default is 240.
+    overwrite : bool, optional
+        If True, overwrite existing output directory. If False, skip conversion
+        if output directory already exists. Default is False.
+    image_only : bool, optional
+        If True, generate only images without HTML files (useful for Globus
+        workflows). If False, generate both images and HTML. Default is False.
+    create_image_directory : bool, optional
+        If True, create a subdirectory based on the HDF filename. Useful when
+        processing multiple files to the same target_dir to avoid overwrites.
+        If target_dir is absolute, this can be set to False. Default is True.
+
+    Returns
+    -------
+    bool
+        True if conversion was successful, False otherwise.
+
+    Notes
+    -----
+    The function creates a directory structure:
+    target_dir/
+        filename_stem/
+            data/       # Exported data files
+            figs/       # Generated plots
+            metadata/   # Metadata files
+            summary.html  # HTML summary (if image_only=False)
+
+    See Also
+    --------
+    save_xpcs_result : Save data to files
+    plot_xpcs_result : Generate plots
+    convert_xpcs_result_safe : Safe wrapper with exception handling
+
+    Examples
+    --------
+    >>> convert_xpcs_result('data.hdf', target_dir='output', dpi=300)
+    True
     """
     fname = Path(fname)
 
@@ -146,10 +237,48 @@ def plot_xpcs_result(
     image_only=False,
 ):
     """
-    create_image_directory: whether to create a image directory based on the
-    hdf filename. It"s useful when plot multiples of hdf files and use the
-    same target_dir, so that the images won"t be overwritten. If target_dir is
-    absolute, then create_image_directory can be set to False.
+    Generate plots and HTML summary from XPCS file object.
+
+    Creates visualization plots for SAXS patterns, stability analysis, and
+    correlation functions, then generates an HTML summary page.
+
+    Parameters
+    ----------
+    xf_obj : XpcsFile
+        XPCS file object containing analysis results.
+    top_dir : Path
+        Top-level directory where plots and HTML will be saved.
+    num_img : int, optional
+        Number of correlation function plots per row. Default is 4.
+    dpi : int, optional
+        Resolution (dots per inch) for generated plots. Default is 240.
+    image_only : bool, optional
+        If True, generate only images and rename them for Globus compatibility.
+        If False, generate HTML summary page. Default is False.
+
+    Returns
+    -------
+    bool
+        Always returns True upon successful completion.
+
+    Notes
+    -----
+    Generated plots include:
+    - SAXS pattern with mask and q-map
+    - Stability plots (intensity vs time)
+    - Multitau correlation functions (if available)
+    - Twotime correlation maps (if available)
+    
+    The function also saves metadata in JSON, text, and Excel formats.
+
+    See Also
+    --------
+    save_xpcs_result : Save raw data to files
+    convert_xpcs_result : Main conversion function
+    plot_crop_mask_saxs : Plot SAXS pattern with mask
+    plot_stability : Plot stability analysis
+    plot_multitau_correlation : Plot multitau correlation functions
+    plot_twotime_correlation : Plot twotime correlation maps
     """
     figs_dir = top_dir / "figs"
     figs_dir.mkdir(parents=True, exist_ok=True)
@@ -198,6 +327,35 @@ def plot_xpcs_result(
 
 
 def convert_xpcs_result_safe(*args, **kwargs):
+    """
+    Safe wrapper for convert_xpcs_result with exception handling.
+
+    Catches and logs any exceptions that occur during conversion, preventing
+    crashes in batch processing scenarios.
+
+    Parameters
+    ----------
+    *args : tuple
+        Positional arguments to pass to convert_xpcs_result.
+    **kwargs : dict
+        Keyword arguments to pass to convert_xpcs_result.
+
+    Returns
+    -------
+    bool or None
+        True if conversion was successful, False if it failed gracefully,
+        or None if an exception occurred.
+
+    See Also
+    --------
+    convert_xpcs_result : The underlying conversion function
+    convert_xpcs_result_wrap : Wrapper for multiprocessing.starmap
+
+    Examples
+    --------
+    >>> convert_xpcs_result_safe('data.hdf', target_dir='output')
+    True
+    """
     try:
         x = convert_xpcs_result(*args, **kwargs)
     except Exception:
@@ -209,5 +367,32 @@ def convert_xpcs_result_safe(*args, **kwargs):
 
 
 def convert_xpcs_result_wrap(args, kwargs):
-    # needed for multiprocessing.starmap
+    """
+    Wrapper function for multiprocessing.starmap compatibility.
+
+    Unpacks arguments and keyword arguments for use with multiprocessing.starmap,
+    which requires a specific calling signature.
+
+    Parameters
+    ----------
+    args : tuple
+        Positional arguments to pass to convert_xpcs_result_safe.
+    kwargs : dict
+        Keyword arguments to pass to convert_xpcs_result_safe.
+
+    Returns
+    -------
+    bool or None
+        Return value from convert_xpcs_result_safe.
+
+    See Also
+    --------
+    convert_xpcs_result_safe : The underlying safe conversion function
+    convert_many_files : Uses this wrapper for parallel processing
+
+    Notes
+    -----
+    This function is specifically designed for use with multiprocessing.Pool.starmap,
+    which requires arguments to be passed as separate tuples.
+    """
     return convert_xpcs_result_safe(*args, **kwargs)

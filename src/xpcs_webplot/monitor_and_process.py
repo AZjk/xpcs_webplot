@@ -16,7 +16,55 @@ logger = logging.getLogger(__name__)
 
 
 class HDF5FileHandler(FileSystemEventHandler):
-    """ Watches for new .hdf5 files (via renaming) and adds them to the queue when fully written. """
+    """
+    File system event handler for monitoring and processing HDF5 files.
+
+    Watches for new .hdf files (typically via renaming from .hdf.temp) and
+    adds them to a processing queue when fully written and readable.
+
+    Parameters
+    ----------
+    task_queue : multiprocessing.Queue
+        Queue to which ready HDF files will be added for processing.
+    stop_flag : multiprocessing.Value
+        Shared boolean flag to signal when to stop monitoring.
+    max_wait : float, optional
+        Maximum time (in seconds) to wait for file to stabilize. Default is 60.
+    check_interval : float, optional
+        Time interval (in seconds) between file stability checks. Default is 0.5.
+
+    Attributes
+    ----------
+    task_queue : multiprocessing.Queue
+        Queue for file processing tasks.
+    stop_flag : multiprocessing.Value
+        Stop signal for the handler.
+    max_wait : float
+        Maximum wait time for file stability.
+    check_interval : float
+        Check interval for file stability.
+
+    Methods
+    -------
+    on_created(event)
+        Handle file creation events.
+    on_moved(event)
+        Handle file rename events.
+    process_hdf_file(file_path)
+        Process and queue an HDF file.
+    wait_for_file_stability(file_path)
+        Wait for file to be fully written and readable.
+
+    See Also
+    --------
+    producer : Uses this handler to monitor directories
+    consumer : Processes files from the queue
+
+    Notes
+    -----
+    This handler is designed to work with the watchdog library's Observer
+    pattern for file system monitoring.
+    """
     def __init__(self, task_queue, stop_flag, max_wait=60, check_interval=0.5):
         self.task_queue = task_queue
         self.stop_flag = stop_flag
@@ -24,7 +72,27 @@ class HDF5FileHandler(FileSystemEventHandler):
         self.check_interval = check_interval  # Interval to check file size stability
 
     def on_created(self, event):
-        """ Called when a new file is created. We ignore `.temp` files and wait for renaming. """
+        """
+        Handle file creation events.
+
+        Called when a new file is created. Ignores temporary files and
+        processes .hdf files directly if created (not renamed).
+
+        Parameters
+        ----------
+        event : FileSystemEvent
+            Event object containing information about the created file.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - Ignores directory creation events
+        - Ignores .hdf.temp files (waits for rename)
+        - Processes .hdf files that are created directly
+        """
         if event.is_directory:
             return
 
@@ -37,7 +105,25 @@ class HDF5FileHandler(FileSystemEventHandler):
             self.process_hdf_file(file_path)
 
     def on_moved(self, event):
-        """ Called when a file is renamed. This ensures we catch `.hdf.temp -> .hdf` renaming. """
+        """
+        Handle file rename events.
+
+        Called when a file is renamed. Catches .hdf.temp -> .hdf renaming
+        which is the typical pattern for HDF file creation.
+
+        Parameters
+        ----------
+        event : FileSystemEvent
+            Event object containing source and destination paths.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Only processes files that are renamed to end with .hdf extension.
+        """
         if event.is_directory:
             return
         src_path = event.src_path
@@ -48,7 +134,27 @@ class HDF5FileHandler(FileSystemEventHandler):
             self.process_hdf_file(dest_path)
 
     def process_hdf_file(self, file_path):
-        """ Wait for the file to be fully written before adding it to the queue. """
+        """
+        Wait for file to be fully written, then add to processing queue.
+
+        Checks the stop flag and waits for file stability before queueing
+        the file for processing.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to the HDF file to process.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        - Respects the stop_flag to avoid processing during shutdown
+        - Uses wait_for_file_stability to ensure file is ready
+        - Logs warnings for incomplete or locked files
+        """
         if self.stop_flag.value:  # Check stop flag
             logger.info("[Producer] Stop flag set. Ignoring new files.")
             return
@@ -62,8 +168,28 @@ class HDF5FileHandler(FileSystemEventHandler):
 
     def wait_for_file_stability(self, file_path):
         """
-        Waits for the file size to stabilize and ensures it is readable.
-        Returns True if the file is ready, False otherwise.
+        Wait for file size to stabilize and ensure it is readable.
+
+        Monitors file size changes and attempts to open the file with h5py
+        to confirm it's fully written and readable.
+
+        Parameters
+        ----------
+        file_path : str
+            Path to the file to check.
+
+        Returns
+        -------
+        bool
+            True if file is stable and readable, False if timeout occurred.
+
+        Notes
+        -----
+        The function waits until:
+        1. File size stops changing between checks
+        2. File can be opened successfully with h5py
+        
+        If max_wait time is exceeded, returns False.
         """
         t0 = time.time()
         prev_size = -1
@@ -89,7 +215,37 @@ class HDF5FileHandler(FileSystemEventHandler):
 
 
 def producer(folder_path, task_queue, stop_flag):
-    """ Sets up the watchdog observer to monitor the folder in real-time. """
+    """
+    Set up watchdog observer to monitor folder for new HDF files.
+
+    Creates and starts a file system observer that watches for new HDF files
+    in the specified folder and adds them to the processing queue.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to the folder to monitor.
+    task_queue : multiprocessing.Queue
+        Queue to which new files will be added.
+    stop_flag : multiprocessing.Value
+        Shared boolean flag to signal when to stop monitoring.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    - Runs in a separate process
+    - Monitors folder non-recursively (only top level)
+    - Stops when stop_flag is set or KeyboardInterrupt is received
+
+    See Also
+    --------
+    HDF5FileHandler : Event handler used by this function
+    consumer : Processes files from the queue
+    monitor_and_process : Main orchestration function
+    """
     event_handler = HDF5FileHandler(task_queue, stop_flag)
     observer = Observer()
     observer.schedule(event_handler, folder_path, recursive=False)
@@ -106,7 +262,44 @@ def producer(folder_path, task_queue, stop_flag):
 
 
 def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
-    """ Processes HDF5 files from the queue. """
+    """
+    Process HDF5 files from the queue.
+
+    Worker process that retrieves files from the queue and converts them
+    to web format, then updates the combined HTML index.
+
+    Parameters
+    ----------
+    consumer_id : int
+        Unique identifier for this consumer worker.
+    task_queue : multiprocessing.Queue
+        Queue from which to retrieve files for processing.
+    stop_flag : multiprocessing.Value
+        Shared boolean flag to signal when to stop processing.
+    **analysis_kwargs : dict
+        Keyword arguments to pass to convert_one_file, including:
+        - target_dir : Output directory for results
+        - num_img : Number of images per row
+        - dpi : Image resolution
+        - overwrite : Whether to overwrite existing files
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    - Runs in a separate process
+    - Processes files until stop_flag is set or None is received from queue
+    - Updates combined HTML index after each file is processed
+    - Uses timeout on queue.get to avoid hanging
+
+    See Also
+    --------
+    producer : Adds files to the queue
+    convert_one_file : Converts individual HDF files
+    combine_all_htmls : Updates combined HTML index
+    """
     while not stop_flag.value:
         try:
             file_path = task_queue.get(timeout=5)  # Timeout to avoid hanging
@@ -126,7 +319,59 @@ def consumer(consumer_id, task_queue, stop_flag, **analysis_kwargs):
 
 
 def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **analysis_kwargs):
-    """ Main function to monitor a folder and process HDF5 files with a time limit. """
+    """
+    Monitor folder for new HDF files and process them with time limit.
+
+    Main orchestration function that sets up producer-consumer architecture
+    to monitor a folder for new HDF files and process them in parallel.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to the folder to monitor for new HDF files.
+    num_workers : int, optional
+        Number of consumer worker processes for parallel processing.
+        Default is 3.
+    max_running_time : int, optional
+        Maximum time (in seconds) to run the monitoring. After this time,
+        all workers will be stopped gracefully. Default is 3600 (1 hour).
+    **analysis_kwargs : dict
+        Keyword arguments to pass to file conversion, including:
+        - target_dir : Output directory for results
+        - num_img : Number of images per row
+        - dpi : Image resolution
+        - overwrite : Whether to overwrite existing files
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The function uses a producer-consumer pattern:
+    1. Producer process monitors folder for new files
+    2. Multiple consumer processes convert files in parallel
+    3. Shared queue coordinates work distribution
+    4. Shared stop flag enables graceful shutdown
+    
+    The monitoring stops when:
+    - max_running_time is reached
+    - KeyboardInterrupt (Ctrl+C) is received
+    
+    All processes are joined before the function returns.
+
+    See Also
+    --------
+    producer : Producer process function
+    consumer : Consumer process function
+    HDF5FileHandler : File system event handler
+
+    Examples
+    --------
+    Monitor folder for 2 hours with 8 workers:
+    >>> monitor_and_process('/path/to/data', num_workers=8,
+    ...                     max_running_time=7200, target_dir='output')
+    """
 
     start_time = time.time()
     task_queue = multiprocessing.Queue()
