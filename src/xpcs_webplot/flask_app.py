@@ -130,7 +130,12 @@ def get_html_data(html_folder, subdir=None):
                 # Extract required fields
                 analysis_type = meta.get("analysis_type", "Unknown")
                 start_time = meta.get("start_time", "")
+                if start_time and isinstance(start_time, str):
+                    start_time = start_time.split('.')[0]
+                    
                 plot_time = meta.get("plot_time", "")
+                if plot_time and isinstance(plot_time, str):
+                    plot_time = plot_time.split('.')[0]
                 
                 # Create entry with summary.html path
                 html_info.append({

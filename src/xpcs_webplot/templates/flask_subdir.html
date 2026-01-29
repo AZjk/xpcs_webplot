@@ -163,76 +163,166 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Split Layout Styles */
+        .container.split-layout {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            border-radius: 0;
+            box-shadow: none;
+            background-color: transparent;
+        }
+
+        body.has-split-layout {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .split-layout .sidebar-wrapper {
+            width: 450px;
+            min-width: 200px;
+            max-width: 80%;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .resizer {
+            background-color: #e0e0e0;
+            cursor: col-resize;
+            height: 100%;
+            width: 5px;
+            z-index: 11;
+            transition: background-color 0.2s;
+        }
+
+        .resizer:hover,
+        .resizer.resizing {
+            background-color: #1bc0dd;
+        }
+
+        .split-layout .preview-wrapper {
+            flex: 1;
+            height: 100%;
+            background: #fdfdfd;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .result-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .iframe-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 1.2em;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        iframe {
+            background: white;
+            position: relative;
+            z-index: 1;
+        }
     </style>
 </head>
 
-<body>
-    <div class="container">
-        <h1>{{ subdir_name }}</h1>
+<body class="has-split-layout">
+    <div class="container split-layout">
+        <div class="sidebar-wrapper">
+            <h1>{{ subdir_name }}</h1>
 
-        <div class="breadcrumb">
-            <a href="/">← Back to Main Dashboard</a>
-        </div>
+            <div class="breadcrumb">
+                <a href="/">← Back to Main Dashboard</a>
+            </div>
 
-        <div class="filters">
-            <div class="filter-row">
-                <div class="filter-group">
-                    <label for="filename-filter">Filter by Filename:</label>
-                    <input type="text" id="filename-filter" class="filter-input"
-                        placeholder="Enter filename to search...">
-                </div>
-                <div class="filter-group">
-                    <label for="analysis-filter">Filter by Analysis Type:</label>
-                    <input type="text" id="analysis-filter" class="filter-input" placeholder="Enter analysis type...">
+            <div class="filters">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="filename-filter">Filter by Filename:</label>
+                        <input type="text" id="filename-filter" class="filter-input"
+                            placeholder="Enter filename to search...">
+                    </div>
+                    <div class="filter-group">
+                        <label for="analysis-filter">Filter by Analysis Type:</label>
+                        <input type="text" id="analysis-filter" class="filter-input"
+                            placeholder="Enter analysis type...">
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="stats">
-            Showing <span id="filtered-count">{{ results|length }}</span> of <span id="total-count">{{ results|length
-                }}</span> results
-        </div>
+            <div class="stats">
+                Showing <span id="filtered-count">{{ results|length }}</span> of <span id="total-count">{{
+                    results|length
+                    }}</span> results
+            </div>
 
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Loading results...</p>
-        </div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Loading results...</p>
+            </div>
 
-        <table id="results-table">
-            <thead>
-                <tr>
-                    <th class="sortable" data-sort="name">
-                        Filename
-                        <span class="sort-arrow" id="sort-name">⬍</span>
-                    </th>
-                    <th class="sortable" data-sort="analysis_type">
-                        Analysis Type
-                        <span class="sort-arrow" id="sort-analysis_type">⬍</span>
-                    </th>
-                    <th class="sortable" data-sort="start_time">
-                        Start Time
-                        <span class="sort-arrow" id="sort-start_time">⬇</span>
-                    </th>
-                    <th class="sortable" data-sort="plot_time">
-                        Plot Time
-                        <span class="sort-arrow" id="sort-plot_time">⬍</span>
-                    </th>
-                </tr>
-            </thead>
-            <tbody id="results-body">
-                {% for item in results %}
-                <tr>
-                    <td><a href="/results/{{ item.folder }}/summary.html">{{ item.name }}</a></td>
-                    <td>{{ item.analysis_type }}</td>
-                    <td>{{ item.start_time }}</td>
-                    <td>{{ item.plot_time }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="name">
+                            Filename
+                            <span class="sort-arrow" id="sort-name">⬍</span>
+                        </th>
+                        <th class="sortable" data-sort="analysis_type">
+                            Analysis Type
+                            <span class="sort-arrow" id="sort-analysis_type">⬍</span>
+                        </th>
+                        <th class="sortable" data-sort="start_time">
+                            Start Time
+                            <span class="sort-arrow" id="sort-start_time">⬇</span>
+                        </th>
+                        <th class="sortable" data-sort="plot_time">
+                            Plot Time
+                            <span class="sort-arrow" id="sort-plot_time">⬍</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                    {% for item in results %}
+                    <tr>
+                        <td><a href="/results/{{ item.folder }}/summary.html" target="result-frame">{{ item.name }}</a>
+                        </td>
+                        <td>{{ item.analysis_type }}</td>
+                        <td>{{ item.start_time }}</td>
+                        <td>{{ item.plot_time }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
-        <div class="no-results" id="no-results" style="display: none;">
-            No results found matching your filters.
+            <div class="no-results" id="no-results" style="display: none;">
+                No results found matching your filters.
+            </div>
+        </div> <!-- end sidebar-wrapper -->
+        <div class="resizer" id="dragMe"></div>
+        <div class="preview-wrapper">
+            <div class="iframe-placeholder">Select a result from the list to view details</div>
+            <iframe name="result-frame" class="result-frame"></iframe>
         </div>
     </div>
 
@@ -270,7 +360,7 @@
 
                 tbody.innerHTML = data.map(item => `
           <tr>
-            <td><a href="/results/${item.folder}/summary.html">${item.name}</a></td>
+            <td><a href="/results/${item.folder}/summary.html" target="result-frame">${item.name}</a></td>
             <td>${item.analysis_type}</td>
             <td>${item.start_time}</td>
             <td>${item.plot_time}</td>
@@ -360,6 +450,64 @@
 
         // Initialize
         updateSortArrows();
+
+        // Resizer Logic
+        document.addEventListener('DOMContentLoaded', function () {
+            const resizer = document.getElementById('dragMe');
+            if (!resizer) return;
+
+            const leftSide = resizer.previousElementSibling;
+            const rightSide = resizer.nextElementSibling;
+
+            // Ensure initial width is set effectively
+            leftSide.style.width = '450px';
+
+            let x = 0;
+            let leftWidth = 0;
+
+            const mouseDownHandler = function (e) {
+                x = e.clientX;
+                leftWidth = leftSide.getBoundingClientRect().width;
+
+                resizer.classList.add('resizing');
+
+                document.addEventListener('mousemove', mouseMoveHandler);
+                document.addEventListener('mouseup', mouseUpHandler);
+
+                // Prevent iframe interaction during resize to avoid trapping mouse events
+                const iframe = rightSide.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.pointerEvents = 'none';
+                }
+            };
+
+            const mouseMoveHandler = function (e) {
+                const dx = e.clientX - x;
+                const newWidth = leftWidth + dx;
+
+                // Min/Max constraints
+                if (newWidth > 200 && newWidth < (window.innerWidth - 100)) {
+                    leftSide.style.width = `${newWidth}px`;
+                }
+
+                document.body.style.cursor = 'col-resize';
+            };
+
+            const mouseUpHandler = function () {
+                resizer.classList.remove('resizing');
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+                document.body.style.cursor = 'default';
+
+                // Restore iframe interaction
+                const iframe = rightSide.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.pointerEvents = 'auto';
+                }
+            };
+
+            resizer.addEventListener('mousedown', mouseDownHandler);
+        });
     </script>
 </body>
 
