@@ -4,6 +4,8 @@ import json
 import shutil
 import sys
 import logging
+import glob
+
 
 logger = logging.getLogger(__name__)
 
@@ -196,17 +198,14 @@ def combine_all_htmls(target_folder="html"):
     INFO: --total number of files: [42]
     """
     targets = ["index.html", "preview.html", "iframe.html"]
-    files = os.listdir(target_folder)
-    htmls = [x for x in files if x.endswith(".html")]
+    htmls = glob.glob(os.path.join(target_folder, "**/summary.html"), recursive=True)
     htmls.sort()
 
     html_info = []
     for x in htmls:
-        if x in targets:
-            continue
-        short_label = os.path.splitext(x)[0]
+        short_label = os.path.basename(os.path.dirname(x))
         short_name = short_label.rstrip("_results")
-        json_fname = os.path.join(target_folder, short_label, "metadata.json")
+        json_fname = os.path.join(os.path.dirname(x), "metadata", "metadata.json")
         try:
             with open(json_fname, "r") as f:
                 meta = json.load(f)
@@ -218,9 +217,10 @@ def combine_all_htmls(target_folder="html"):
         except Exception as e:
             logger.error(str(e))
         else:
-            html_info.append([short_name, x, v1, v2, v3])
+            relative_path = os.path.join(*x.split(os.sep)[1:])
+            html_info.append([short_name, relative_path, v1, v2, v3])
     html_info.sort(key=lambda x: x[3], reverse=True)
-    tfiles = ["combined.html"]
+    tfiles = ["combined.html", "combined_preview.html", "combined_iframe.html"]
 
     loader = jinja2.FileSystemLoader(template_path)
     for target, template in zip(targets, tfiles):
@@ -230,7 +230,8 @@ def combine_all_htmls(target_folder="html"):
             .render(mydata=html_info)
         )
         # lets write the substitution to a file
-        with open(os.path.join(target_folder, target), "w") as f:
+        static_html_path = os.path.join(target_folder, "static_" + target) 
+        with open(static_html_path, "w") as f:
             f.write(subs)
 
     copy_minipreview(target_folder)
