@@ -61,7 +61,7 @@ This will:
 - Generate plots (SAXS, stability, correlation functions)
 - Export data to text files
 - Create an HTML summary page
-- Save everything to `./html/` directory by default
+- Save everything to `/tmp/` directory by default (configurable via `--html-dir`)
 
 ### View Results in Browser
 
@@ -71,14 +71,14 @@ Start the Flask web server to view your results:
 xpcs_webplot serve ./html
 ```
 
-Then open your browser to `http://localhost:5000` to view the interactive results.
+Then open your browser to `http://localhost:5000` to view the interactive results. The interface features a split-view layout with a resizable file browser on the left and result viewer on the right.
 
 ### Process Multiple Files
 
 To process all XPCS files in a directory:
 
 ```bash
-xpcs_webplot plot /path/to/directory/*.hdf --target-dir ./html
+xpcs_webplot plot /path/to/directory/*.hdf --html-dir ./html
 ```
 
 ### Combine Results
@@ -100,7 +100,7 @@ Convert XPCS HDF files to web format:
 xpcs_webplot plot input.hdf
 
 # Specify output directory
-xpcs_webplot plot input.hdf --target-dir ./output
+xpcs_webplot plot input.hdf --html-dir ./output
 
 # Process with custom settings
 xpcs_webplot plot input.hdf --num-img 8 --dpi 300
@@ -158,7 +158,7 @@ xpcs_webplot serve ./html
 
 ```bash
 # 1. Process all files in a directory
-xpcs_webplot plot /data/experiment/*.hdf --target-dir ./results
+xpcs_webplot plot /data/experiment/*.hdf --html-dir ./results
 
 # 2. Combine results
 xpcs_webplot combine ./results
@@ -171,7 +171,7 @@ xpcs_webplot serve ./results
 
 ```bash
 # Monitor a directory and auto-process new files
-xpcs_webplot plot /data/incoming --monitor --target-dir ./results
+xpcs_webplot plot /data/incoming --monitor --html-dir ./results
 ```
 
 This will watch the directory and automatically process new HDF files as they appear.

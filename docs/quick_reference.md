@@ -44,14 +44,14 @@ xpcs_webplot serve ./html
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--target-dir` | `./html` | Output directory |
+| `--html-dir` | `/tmp` | Output directory |
 | `--num-img` | `4` | Number of twotime images |
 | `--dpi` | `240` | Plot resolution |
 | `--overwrite` | `False` | Overwrite existing results |
 | `--image-only` | `False` | Skip data export |
 | `--no-save-result` | - | Skip saving text files |
 | `--monitor` | `False` | Watch directory for new files |
-| `--num-processes` | `4` | Parallel processes |
+| `--num-workers` | `8` | Parallel processes |
 
 ### Serve Command
 
@@ -79,14 +79,14 @@ xpcs_webplot plot data.hdf --dpi 600 --num-img 12
 ### Batch Processing
 
 ```bash
-xpcs_webplot plot /data/*.hdf --num-processes 8 --target-dir ./results
+xpcs_webplot plot /data/*.hdf --num-workers 8 --html-dir ./results
 xpcs_webplot combine ./results
 ```
 
 ### Monitoring
 
 ```bash
-xpcs_webplot plot /data/incoming --monitor --target-dir ./live
+xpcs_webplot plot /data/incoming --monitor --html-dir ./live
 ```
 
 ### Custom Server
@@ -119,7 +119,7 @@ html/
 ```python
 from xpcs_webplot.converter import convert_xpcs_result
 
-convert_xpcs_result('data.hdf', target_dir='output')
+convert_xpcs_result('data.hdf', html_dir='output')
 ```
 
 ### Batch Processing
@@ -129,7 +129,7 @@ from xpcs_webplot.webplot_cli import convert_many_files
 import glob
 
 files = glob.glob('/data/*.hdf')
-convert_many_files(files, num_processes=8)
+convert_many_files(files, num_workers=8)
 ```
 
 ### Custom Flask App

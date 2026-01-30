@@ -22,7 +22,7 @@ Features
 --------
 
 * Convert XPCS HDF5 files to HTML with plots and data exports
-* Flask-based web server for browsing results
+* Flask-based web server for browsing results with split-view layout
 * Batch processing with parallel execution
 * Real-time directory monitoring for automatic processing
 * Flexible output options and customization
@@ -39,7 +39,7 @@ Installation::
 
 Convert a single file::
 
-    xpcs_webplot plot input.hdf
+    xpcs_webplot plot input.hdf --html-dir ./html
 
 Start web server::
 
@@ -58,50 +58,3 @@ Comprehensive documentation is available in the ``docs/`` directory:
 * `Development Guide <docs/development_guide.md>`_ - Contributing
 * `Deployment Guide <docs/deployment_guide.md>`_ - Production setup
 * `FAQ <docs/faq.md>`_ - Troubleshooting and common questions
-
-Start Nginx web server
--------
-
-* login axinite as 8idiuer
-    ``ssh 8idiuser@axinite.xray.aps.anl.gov -Y``
-
-* check if Nginx is running
-     ``docker container ls | grep nginx``
-
-* stop Nginx if you want to switch to a new html folder
-     ``docker stop webplothttp``
- 
-* start a new Nginx server, replace CYCLE with the correct values,
-    ``docker run --rm --name webplothttp -v /net/wolf/data/xpcs8/CYCLE/html:/usr/share/nginx/html:ro -p 80:80 -d nginx``
-    
-
-
-Run webplot in the background
--------
-
-* login axinite as 8idiuer
-    ``ssh 8idiuser@axinite.xray.aps.anl.gov -Y``
-
-* resume the screen session for webplot
-    ``screen -xS webplot``
-    
-    if you see messages like ``There is no screen to be attached matching webplot.``, then start a new session
-    ``screen -S webplot``
-
-* switch to the 1st panel of the screen session, press ``CTRL + A``, then press ``1``
-
-* run webplot if it's not running
-    ``watch -n 120 webplot combine_all_htmls``
-
-    this will run the command ``webplot combine_all_htmls`` every ``120`` seconds.
-
-* exit screen by press ``CTRL + A``, then press ``d``. Now you are safe to terminate the ssh session. webplot will be running in the background.
-       
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage

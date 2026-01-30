@@ -55,12 +55,12 @@ xpcs_webplot plot /data/experiment/
 
 ### Options
 
-#### `--target-dir` (default: `./html`)
+#### `--html-dir` (default: `/tmp`)
 
 Specify the output directory for generated HTML and plots:
 
 ```bash
-xpcs_webplot plot data.hdf --target-dir ./results
+xpcs_webplot plot data.hdf --html-dir ./results
 ```
 
 #### `--num-img` (default: `4`)
@@ -120,7 +120,7 @@ xpcs_webplot plot data.hdf --save-result
 Enable real-time directory monitoring for new files:
 
 ```bash
-xpcs_webplot plot /data/incoming --monitor --target-dir ./results
+xpcs_webplot plot /data/incoming --monitor --html-dir ./results
 ```
 
 When enabled, the program will:
@@ -128,12 +128,12 @@ When enabled, the program will:
 - Automatically process new files as they appear
 - Continue running until manually stopped (Ctrl+C)
 
-#### `--num-processes` (default: `4`)
+#### `--num-workers` (default: `8`)
 
 Number of parallel processes for batch processing:
 
 ```bash
-xpcs_webplot plot /data/*.hdf --num-processes 8
+xpcs_webplot plot /data/*.hdf --num-workers 8
 ```
 
 ### Examples
@@ -152,7 +152,7 @@ Creates output in `./html/experiment_001/` with:
 #### Example 2: High-Quality Output
 
 ```bash
-xpcs_webplot plot data.hdf --dpi 600 --num-img 12 --target-dir ./publication
+xpcs_webplot plot data.hdf --dpi 600 --num-img 12 --html-dir ./publication
 ```
 
 Generates high-resolution plots suitable for publication.
@@ -160,7 +160,7 @@ Generates high-resolution plots suitable for publication.
 #### Example 3: Batch Processing
 
 ```bash
-xpcs_webplot plot /data/2024_01/*.hdf --target-dir ./results --num-processes 8
+xpcs_webplot plot /data/2024_01/*.hdf --html-dir ./results --num-workers 8
 ```
 
 Processes all HDF files in parallel using 8 CPU cores.
@@ -168,7 +168,7 @@ Processes all HDF files in parallel using 8 CPU cores.
 #### Example 4: Monitoring Mode
 
 ```bash
-xpcs_webplot plot /data/live --monitor --target-dir ./live_results
+xpcs_webplot plot /data/live --monitor --html-dir ./live_results
 ```
 
 Continuously monitors `/data/live` and processes new files automatically.
@@ -269,6 +269,7 @@ xpcs_webplot serve ./html --debug
 The web server provides:
 
 - **Interactive Index**: Browse all results with filtering and sorting
+- **Split-View Interface**: Browse files in a resizable left panel while viewing content in the right panel
 - **Subdirectory Support**: Navigate through nested result structures
 - **Combined Views**: View multiple results in a single page
 - **Direct File Access**: Access individual plots and data files
@@ -312,10 +313,10 @@ Default values for common options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `target-dir` | `./html` | Output directory |
+| `html-dir` | `/tmp` | Output directory |
 | `num-img` | `4` | Number of twotime images |
 | `dpi` | `240` | Plot resolution |
-| `num-processes` | `4` | Parallel processes |
+| `num-workers` | `8` | Parallel processes |
 | `port` | `5000` | Web server port |
 | `host` | `0.0.0.0` | Web server host |
 
@@ -330,7 +331,7 @@ The monitoring feature uses a producer-consumer architecture:
 - **Queue**: Thread-safe queue for file paths
 
 ```bash
-xpcs_webplot plot /data/incoming --monitor --num-processes 4
+xpcs_webplot plot /data/incoming --monitor --num-workers 4
 ```
 
 ### Subdirectory Organization
@@ -358,7 +359,7 @@ Batch processing uses Python's multiprocessing:
 
 ```bash
 # Use all available CPU cores
-xpcs_webplot plot /data/*.hdf --num-processes $(nproc)
+xpcs_webplot plot /data/*.hdf --num-workers $(nproc)
 ```
 
 ### Error Handling
@@ -395,7 +396,7 @@ result_folder/
 
 1. **Use parallel processing** for batch jobs:
    ```bash
-   xpcs_webplot plot /data/*.hdf --num-processes 8
+   xpcs_webplot plot /data/*.hdf --num-workers 8
    ```
 
 2. **Adjust DPI** based on needs:
@@ -419,8 +420,8 @@ result_folder/
 
 Common issues and solutions:
 
-1. **Out of memory**: Reduce `--num-processes`
-2. **Slow processing**: Increase `--num-processes`
+1. **Out of memory**: Reduce `--num-workers`
+2. **Slow processing**: Increase `--num-workers`
 3. **Large output**: Use `--image-only` or `--no-save-result`
 4. **Port in use**: Change `--port` to different value
 
