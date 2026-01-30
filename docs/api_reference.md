@@ -90,13 +90,13 @@ Core conversion logic for processing XPCS HDF5 files.
 
 ### Functions
 
-#### `convert_xpcs_result(fname=None, target_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True)`
+#### `convert_xpcs_result(fname=None, html_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True)`
 
 Convert XPCS HDF file to web-viewable format with plots and data exports.
 
 **Parameters:**
 - `fname` (str or Path): Path to input XPCS HDF file
-- `target_dir` (str or Path): Output directory for results (default: "html")
+- `html_dir` (str or Path): Output directory for results (default: "html")
 - `num_img` (int): Number of twotime correlation images (default: 4)
 - `dpi` (int): Resolution for plots in dots per inch (default: 240)
 - `overwrite` (bool): Overwrite existing results (default: False)
@@ -117,7 +117,7 @@ Convert XPCS HDF file to web-viewable format with plots and data exports.
 from xpcs_webplot.converter import convert_xpcs_result
 
 # Basic conversion
-convert_xpcs_result('data.hdf', target_dir='output')
+convert_xpcs_result('data.hdf', html_dir='output')
 
 # High-quality output
 convert_xpcs_result('data.hdf', dpi=600, num_img=12)
@@ -203,7 +203,7 @@ Catches and logs any exceptions that occur during conversion, preventing crashes
 from xpcs_webplot.converter import convert_xpcs_result_safe
 
 # Safe conversion that won't crash on errors
-success = convert_xpcs_result_safe('data.hdf', target_dir='output')
+success = convert_xpcs_result_safe('data.hdf', html_dir='output')
 if not success:
     print("Conversion failed, but program continues")
 ```
@@ -216,7 +216,7 @@ High-level functions for file conversion workflows.
 
 ### Functions
 
-#### `convert_one_file(fname, target_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True)`
+#### `convert_one_file(fname, html_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True)`
 
 Convert a single XPCS HDF file to web format.
 
@@ -231,16 +231,16 @@ Convert a single XPCS HDF file to web format.
 ```python
 from xpcs_webplot.webplot_cli import convert_one_file
 
-convert_one_file('experiment_001.hdf', target_dir='results')
+convert_one_file('experiment_001.hdf', html_dir='results')
 ```
 
-#### `convert_many_files(file_list, target_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True, num_processes=4)`
+#### `convert_many_files(file_list, html_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True, num_workers=24)`
 
 Convert multiple XPCS files in parallel.
 
 **Parameters:**
 - `file_list` (list): List of file paths to convert
-- `num_processes` (int): Number of parallel processes (default: 4)
+- `num_workers` (int): Number of parallel processes (default: 24)
 - Other parameters same as `convert_one_file`
 
 **Returns:**
@@ -253,7 +253,7 @@ from xpcs_webplot.webplot_cli import convert_many_files
 import glob
 
 files = glob.glob('/data/*.hdf')
-results = convert_many_files(files, num_processes=8)
+results = convert_many_files(files, num_workers=8)
 print(f"Successful: {sum(results)}/{len(results)}")
 ```
 
@@ -420,13 +420,13 @@ Directory monitoring and batch processing with producer-consumer pattern.
 
 ### Functions
 
-#### `monitor_and_process(input_path, target_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True, num_processes=4)`
+#### `monitor_and_process(input_path, html_dir="html", num_img=4, dpi=240, overwrite=False, image_only=False, create_image_directory=True, save_result=True, num_workers=3)`
 
 Monitor directory for new XPCS files and process them automatically.
 
 **Parameters:**
 - `input_path` (str): Directory to monitor
-- `num_processes` (int): Number of worker processes
+- `num_workers` (int): Number of worker processes
 - Other parameters same as convert_xpcs_result
 
 **Description:**
@@ -439,7 +439,7 @@ Uses watchdog to monitor a directory for new HDF files and processes them using 
 from xpcs_webplot.monitor_and_process import monitor_and_process
 
 # Monitor directory and auto-process new files
-monitor_and_process('/data/incoming', target_dir='results', num_processes=4)
+monitor_and_process('/data/incoming', html_dir='results', num_workers=4)
 ```
 
 ## metadata_utils Module
@@ -482,7 +482,7 @@ from pathlib import Path
 # Convert single file
 success = convert_xpcs_result(
     fname='experiment_001.hdf',
-    target_dir='results',
+    html_dir='results',
     num_img=8,
     dpi=300,
     overwrite=True
@@ -504,8 +504,8 @@ files = glob.glob('/data/experiment/*.hdf')
 # Process in parallel
 results = convert_many_files(
     files,
-    target_dir='batch_results',
-    num_processes=8,
+    html_dir='batch_results',
+    num_workers=8,
     dpi=240
 )
 
