@@ -24,7 +24,18 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = ["numpy", "h5py", "matplotlib", "jinja2", "flask", "watchdog"]
+dependencies = [
+    "numpy",
+    "h5py",
+    "matplotlib",
+    "jinja2",
+    "flask",
+    "watchdog",
+    "pandas",
+    "scikit-image",
+    "xpcs-viewer",
+    "openpyxl"
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=3", "pytest-cov", "flake8", "black", "mypy", "pre-commit"]
