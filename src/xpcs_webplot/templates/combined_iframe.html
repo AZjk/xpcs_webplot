@@ -7,6 +7,15 @@
       margin: 0px;
       padding: 0px;
       font-family: Arial, Helvetica, sans-serif;
+      overflow: hidden;
+      /* Prevent body scroll, handle inside panels */
+    }
+
+    /* Container for the flex layout */
+    .container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
     }
 
     table {
@@ -25,88 +34,129 @@
     }
 
     tr:hover {
-          background-color: #ffff99;
-        }
+      background-color: #ffff99;
+    }
 
     th {
       background-color: #1bc0dd;
       color: white;
-      font-size: 18px
+      font-size: 18px;
+      position: sticky;
+      top: 0;
     }
 
-    .column {
-      float: left;
-      width: 50%;
-      overflow: auto
+    .panel {
+      overflow: auto;
+      height: 100%;
     }
 
-    /* Clear floats after the columns */
-    .row:after {
-      content: "";
-      display: table;
-      clear: both;
+    #left-panel {
+      width: 30%;
+      min-width: 150px;
+      border-right: 1px solid #ddd;
+    }
+
+    #right-panel {
+      flex-grow: 1;
+      min-width: 150px;
+    }
+
+    .gutter {
+      width: 5px;
+      background-color: #ccc;
+      cursor: col-resize;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+    }
+
+    .gutter:hover {
+      background-color: #999;
     }
   </style>
+</head>
 
-  <head>
-
-  <body>
-    <div class="row" id="row1">
-      <div class="column" id="col1">
-        <div style="height:100vh;overflow:auto;" id="scroll1">
-          <table id="'filetable">
-            <tr>
-              <th> Filename </th>
-            </tr>
-            <!-- 
-            <tr>
-            <td>
-              <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for fname.."
-                title="Type in a fname" size="100">
-            </td>
-          </tr>
-        -->
-            {% for line in mydata %}
-            <tr>
-              <td> <a href="{{line[1]}}" target="iframe_a"> {{line[0]}} </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </table>
-        </div>
-      </div>
-
-      <div class="column">
-        <div style="height:100vh;overflow:auto;">
-          <iframe name="iframe_a" width="100%" height="100%" title="Iframe Example"></iframe>
-        </div>
-      </div>
+<body>
+  <div class="container" id="main-container">
+    <div class="panel" id="left-panel">
+      <table id="filetable">
+        <tr>
+          <th> Filename </th>
+        </tr>
+        <!-- 
+        <tr>
+        <td>
+          <input type="text" id="fname_str" onkeyup="filter_fname()" placeholder="Search for fname.."
+            title="Type in a fname" size="100">
+        </td>
+      </tr>
+      -->
+        {% for line in mydata %}
+        <tr>
+          <td> <a href="{{line[1]}}" target="iframe_a"> {{line[0]}} </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
     </div>
 
-    <!--
+    <div class="gutter" id="gutter"></div>
 
+    <div class="panel" id="right-panel">
+      <iframe name="iframe_a" id="content-iframe" width="100%" height="100%" frameborder="0"
+        title="Iframe Example"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const gutter = document.getElementById('gutter');
+    const leftPanel = document.getElementById('left-panel');
+    const container = document.getElementById('main-container');
+    const iframe = document.getElementById('content-iframe');
+
+    let isDragging = false;
+
+    gutter.addEventListener('mousedown', function (e) {
+      isDragging = true;
+      document.body.style.cursor = 'col-resize';
+      // Prevent iframe from capturing mouse events during drag
+      iframe.style.pointerEvents = 'none';
+    });
+
+    document.addEventListener('mousemove', function (e) {
+      if (!isDragging) return;
+
+      const containerRect = container.getBoundingClientRect();
+      let newLeftWidth = e.clientX - containerRect.left;
+
+      // Constraints
+      if (newLeftWidth < 150) newLeftWidth = 150;
+      if (newLeftWidth > containerRect.width - 150) newLeftWidth = containerRect.width - 150;
+
+      leftPanel.style.width = newLeftWidth + 'px';
+    });
+
+    document.addEventListener('mouseup', function (e) {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.cursor = 'default';
+        iframe.style.pointerEvents = 'auto';
+      }
+    });
+  </script>
+
+  <!--
     <script>
       function filter_fname() {
         var input, filter, table, tr, td, i, txtValue;
-        input = document.getElementById("row1").getElementsByTagName("col1").getElementsByTagName("scroll1").getElementsByTagName("fname_str")
-        filter = input.value.toUpperCase();
-        table = document.getElementById("row1").getElementsByTagName("col1").getElementsByTagName("scroll1").getElementsByTagName("filetalbe")
-        tr = table.getElementsByTagName("tr");
-        for (i = 2; i < tr.length; i++) {
-          td = tr[i].getElementsByTagName("td")[0];
-          if (td) {
-            txtValue = td.textContent || td.innerText;
-            if (txtValue.toUpperCase().indexOf(filter) > -1) {
-              tr[i].style.display = "";
-            } else {
-              tr[i].style.display = "none";
-            }
-          }
-        }
+        // This selector was originally broken/incorrect, left as comment for reference
+        // input = document.getElementById("row1").getElementsByTagName("col1")... 
+        // ...
       }
     </script>
-    -->
+-->
 
-  </body>
+</body>
 
 </html>
