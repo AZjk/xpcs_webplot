@@ -160,7 +160,7 @@ def main():
     )
 
     plot_command.add_argument(
-        "--target-dir",
+        "--html-dir",
         type=str,
         nargs="?",
         default="/tmp",
@@ -247,7 +247,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     combine_command.add_argument(
-        "target_dir",
+        "html_dir",
         type=str,
         nargs="?",
         help="Directory containing HTML files to combine into a single index page"
@@ -272,7 +272,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     serve_command.add_argument(
-        "target_dir",
+        "html_dir",
         type=str,
         nargs="?",
         default=".",
@@ -327,9 +327,9 @@ def main():
             logger.error(f"Invalid file or directory: {fname}")
 
     elif command == "combine":
-        combine_all_htmls(kwargs["target_dir"])
+        combine_all_htmls(kwargs["html_dir"])
     elif command == "serve":
-        run_flask_server(kwargs["target_dir"], kwargs["port"], kwargs["host"])
+        run_flask_server(kwargs["html_dir"], kwargs["port"], kwargs["host"])
     else:
         parser.print_help()
 

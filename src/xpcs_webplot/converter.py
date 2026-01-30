@@ -129,7 +129,7 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
 
 def convert_xpcs_result(
     fname=None,
-    target_dir="html",
+    html_dir="html",
     num_img=4,
     dpi=240,
     overwrite=False,
@@ -147,7 +147,7 @@ def convert_xpcs_result(
     ----------
     fname : str or Path, optional
         Path to the HDF file to convert. Default is None.
-    target_dir : str, optional
+    html_dir : str, optional
         Base output directory for generated files. A subdirectory named after
         the HDF file (without extension) will be created within this directory.
         Default is 'html'.
@@ -164,8 +164,8 @@ def convert_xpcs_result(
         workflows). If False, generate both images and HTML. Default is False.
     create_image_directory : bool, optional
         If True, create a subdirectory based on the HDF filename. Useful when
-        processing multiple files to the same target_dir to avoid overwrites.
-        If target_dir is absolute, this can be set to False. Default is True.
+        processing multiple files to the same html_dir to avoid overwrites.
+        If html_dir is absolute, this can be set to False. Default is True.
     save_result : bool, optional
         If True, save XPCS result data files (SAXS, g2, twotime) to disk.
         If False, skip saving data files and only generate plots and HTML.
@@ -179,7 +179,7 @@ def convert_xpcs_result(
     Notes
     -----
     The function creates a directory structure:
-    target_dir/
+    html_dir/
         filename_stem/
             data/       # Exported data files
             figs/       # Generated plots
@@ -194,7 +194,7 @@ def convert_xpcs_result(
 
     Examples
     --------
-    >>> convert_xpcs_result('data.hdf', target_dir='output', dpi=300)
+    >>> convert_xpcs_result('data.hdf', html_dir='output', dpi=300)
     True
     """
     fname = Path(fname)
@@ -206,7 +206,7 @@ def convert_xpcs_result(
     basename = fname.name
     rel_dir = fname.stem
 
-    top_dir = Path(target_dir) / rel_dir
+    top_dir = Path(html_dir) / rel_dir
 
     if not overwrite and top_dir.is_dir():
         logger.info(f"skip job to avoid overwrite: [{basename}]")

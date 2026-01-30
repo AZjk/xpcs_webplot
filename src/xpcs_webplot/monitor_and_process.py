@@ -292,11 +292,9 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, **analysis_kwargs):
         Queue from which to retrieve files for processing.
     stop_flag : multiprocessing.Value
         Shared boolean flag to signal when to stop processing.
-    stats_dict : multiprocessing.Manager.dict
-        Shared dictionary for tracking processing statistics.
     **analysis_kwargs : dict
         Keyword arguments to pass to convert_one_file, including:
-        - target_dir : Output directory for results
+        - html_dir : Output directory for results
         - num_img : Number of images per row
         - dpi : Image resolution
         - overwrite : Whether to overwrite existing files
@@ -330,7 +328,7 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, **analysis_kwargs):
             logger.info(f"[Consumer-{consumer_id}] Processing: {file_path}")
             try:
                 convert_one_file(file_path, **analysis_kwargs)
-                combine_all_htmls(analysis_kwargs["target_dir"])
+                combine_all_htmls(analysis_kwargs["html_dir"])
                 processed += 1
             except Exception as e:
                 logger.error(
@@ -371,7 +369,7 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
         all workers will be stopped gracefully. Default is 3600 (1 hour).
     **analysis_kwargs : dict
         Keyword arguments to pass to file conversion, including:
-        - target_dir : Output directory for results
+        - html_dir : Output directory for results
         - num_img : Number of images per row
         - dpi : Image resolution
         - overwrite : Whether to overwrite existing files
@@ -404,7 +402,7 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     --------
     Monitor folder for 2 hours with 8 workers:
     >>> monitor_and_process('/path/to/data', num_workers=8,
-    ...                     max_running_time=7200, target_dir='output')
+    ...                     max_running_time=7200, html_dir='output')
     """
 
     start_time = time.time()

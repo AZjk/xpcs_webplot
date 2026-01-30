@@ -24,7 +24,7 @@ def convert_many_files(flist, num_workers=24, **kwargs):
     **kwargs : dict
         Additional keyword arguments to pass to the conversion function.
         Common options include:
-        - target_dir : str, output directory for generated files
+        - html_dir : str, output directory for generated files
         - num_img : int, number of images per row
         - dpi : int, image resolution
         - overwrite : bool, whether to overwrite existing files
@@ -47,7 +47,7 @@ def convert_many_files(flist, num_workers=24, **kwargs):
     Examples
     --------
     >>> files = ['file1.hdf', 'file2.hdf', 'file3.hdf']
-    >>> convert_many_files(files, num_workers=4, target_dir='output')
+    >>> convert_many_files(files, num_workers=4, html_dir='output')
     """
     assert isinstance(flist, list)
     tot_num = len(flist)
@@ -94,7 +94,7 @@ def convert_folder(folder, **kwargs):
 
     Examples
     --------
-    >>> convert_folder('/path/to/data', target_dir='html', num_workers=8)
+    >>> convert_folder('/path/to/data', html_dir='html', num_workers=8)
     """
     if os.path.isdir(folder):
         folder = folder.rstrip("/")
@@ -117,7 +117,7 @@ def convert_one_file(fname=None, **kwargs):
     **kwargs : dict
         Additional keyword arguments to pass to the conversion function.
         Common options include:
-        - target_dir : str, output directory for generated files
+        - html_dir : str, output directory for generated files
         - num_img : int, number of images per row
         - dpi : int, image resolution
         - overwrite : bool, whether to overwrite existing files
@@ -137,7 +137,7 @@ def convert_one_file(fname=None, **kwargs):
 
     Examples
     --------
-    >>> convert_one_file('data.hdf', target_dir='output', dpi=240)
+    >>> convert_one_file('data.hdf', html_dir='output', dpi=240)
     True
     """
     return convert_xpcs_result_safe(fname, **kwargs)

@@ -151,7 +151,7 @@ def convert_single_folder(target_folder):
     return
 
 
-def combine_all_htmls(target_folder="html"):
+def combine_all_htmls(html_dir="html"):
     """
     Combine multiple XPCS result HTMLs into a single index page.
 
@@ -160,7 +160,7 @@ def combine_all_htmls(target_folder="html"):
 
     Parameters
     ----------
-    target_folder : str, optional
+    html_dir : str, optional
         Path to the folder containing HTML result subdirectories.
         Default is "html".
 
@@ -171,7 +171,7 @@ def combine_all_htmls(target_folder="html"):
     Notes
     -----
     The function:
-    1. Scans for HTML files in the target folder
+    1. Scans for HTML files in the html_dir
     2. Extracts metadata from each result's metadata.json
     3. Generates combined index pages:
        - index.html
@@ -198,7 +198,7 @@ def combine_all_htmls(target_folder="html"):
     INFO: --total number of files: [42]
     """
     targets = ["index.html", "preview.html", "iframe.html"]
-    htmls = glob.glob(os.path.join(target_folder, "**/summary.html"), recursive=True)
+    htmls = glob.glob(os.path.join(html_dir, "*/summary.html"), recursive=True)
     htmls.sort()
 
     html_info = []
@@ -217,7 +217,7 @@ def combine_all_htmls(target_folder="html"):
         except Exception as e:
             logger.error(str(e))
         else:
-            relative_path = os.path.join(*x.split(os.sep)[1:])
+            relative_path = os.path.join(*x.split(os.sep)[-2:])
             html_info.append([short_name, relative_path, v1, v2, v3])
     html_info.sort(key=lambda x: x[3], reverse=True)
     tfiles = ["combined.html", "combined_preview.html", "combined_iframe.html"]
@@ -230,12 +230,12 @@ def combine_all_htmls(target_folder="html"):
             .render(mydata=html_info)
         )
         # lets write the substitution to a file
-        static_html_path = os.path.join(target_folder, "static_" + target) 
+        static_html_path = os.path.join(html_dir, "static_" + target) 
         with open(static_html_path, "w") as f:
             f.write(subs)
 
-    copy_minipreview(target_folder)
-    logger.info(f"hdf files combined: [{target_folder}]")
+    copy_minipreview(html_dir)
+    logger.info(f"hdf files combined: [{html_dir}]")
     logger.info(f"--total number of files: [{len(html_info)}]")
 
 
