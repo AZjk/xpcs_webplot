@@ -72,14 +72,14 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
     q, Iq = xf_obj.saxs_1d["q"], xf_obj.saxs_1d["Iq"]
     q = q.reshape(1, -1)
     data = np.vstack((q, Iq)).T
-    np.savetxt(saxs_1d_path, data, header="q (1/Å)       Intensity (a.u.)")
+    np.savetxt(saxs_1d_path, data, header="q (1/Å)       Intensity (a.u.)", delimiter=",")
 
     # saxs 1D stability
     saxs_1d_stability_path = data_dir / "saxs_1d_stability.txt"
     q, Iqp = xf_obj.saxs_1d["q"], xf_obj.Iqp
     data = np.stack([q] + [Iqp[n] for n in range(Iqp.shape[0])], axis=0)
-    header = " ".join(["q (1/Å)"] + [f"Iq_t{n}" for n in range(Iqp.shape[0])])
-    np.savetxt(saxs_1d_stability_path, data.T, header=header)
+    header = ",".join(["q (1/Å)"] + [f"Iq_t{n}" for n in range(Iqp.shape[0])])
+    np.savetxt(saxs_1d_stability_path, data.T, header=header, delimiter=",")
 
     # Save saxs 2D data
     saxs_2d_path = data_dir / "saxs_2d.tif"
@@ -88,19 +88,19 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
     # Save correlation functions
     if "Multitau" in xf_obj.atype:
         qvalues, t_el, g2, g2_err, labels = xf_obj.get_g2_data()
-        header = "qbin     :" + " ".join(qvalues.astype(str)) + "\n"
-        header += "delay (s):" + " ".join(t_el.astype(str)) + "\n"
-        header += "labels   :" + " ".join(labels) + "\n"
+        header = "qbin     :" + ",".join(qvalues.astype(str)) + "\n"
+        header += "delay (s):" + ",".join(t_el.astype(str)) + "\n"
+        header += "labels   :" + ",".join(labels) + "\n"
         g2_path = data_dir / "g2.txt"
-        np.savetxt(g2_path, g2, header=header)
+        np.savetxt(g2_path, g2, header=header, delimiter=",")
         g2_err_path = data_dir / "g2_err.txt"
-        np.savetxt(g2_err_path, g2_err, header=header)
+        np.savetxt(g2_err_path, g2_err, header=header, delimiter=",")
 
         delays_path = data_dir / "delays.txt"
-        np.savetxt(delays_path, t_el, header="Delay times (s)")
+        np.savetxt(delays_path, t_el, header="Delay times (s)", delimiter=",")
 
         delays_path = data_dir / "qbin_values.txt"
-        np.savetxt(delays_path, qvalues, header="q (1/Å)")
+        np.savetxt(delays_path, qvalues, header="q (1/Å)", delimiter=",")
 
     if "Twotime" in xf_obj.atype:
         idxlist, c2_stream = xf_obj.get_twotime_stream()
@@ -118,12 +118,14 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
             data_dir / "c2_g2.txt",
             xf_obj.c2_g2,
             header=f"g2 from twotime analysis\nnum_delays [{shape[0]}] x num_qbins [{shape[1]}]",
+            delimiter=",",
         )
         shape = xf_obj.c2_g2_segments.shape
         np.savetxt(
             data_dir / "c2_g2_partials.txt",
             xf_obj.c2_g2_segments.reshape(-1, num_qbins),
             header=f"g2 from twotime analysis \n(num_delays[{shape[0]}] x num_segments[{shape[1]}]) x num_qbins[{shape[2]}]",
+            delimiter=","
         )
 
 
