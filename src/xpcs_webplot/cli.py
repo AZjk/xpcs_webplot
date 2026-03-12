@@ -95,13 +95,13 @@ def main():
     Examples
     --------
     Convert a single file:
-    $ xpcs-webplot plot data.hdf --target-dir output --dpi 300
-    
+    $ xpcs-webplot plot data.hdf --html-dir output --dpi 300
+
     Convert all files in a directory:
-    $ xpcs-webplot plot /path/to/data --target-dir output --num-workers 8
-    
+    $ xpcs-webplot plot /path/to/data --html-dir output --num-workers 8
+
     Monitor a directory for new files:
-    $ xpcs-webplot plot /path/to/data --monitor --target-dir output
+    $ xpcs-webplot plot /path/to/data --monitor --html-dir output
     
     Serve results with Flask:
     $ xpcs-webplot serve output --port 8080
@@ -122,7 +122,7 @@ def main():
         ),
         epilog=(
             "Examples:\n"
-            "  xpcs-webplot plot data.hdf --target-dir output\n"
+            "  xpcs-webplot plot data.hdf --html-dir output\n"
             "  xpcs-webplot plot /data/dir --monitor --num-workers 8\n"
             "  xpcs-webplot combine output\n"
             "  xpcs-webplot serve output --port 8080\n"
@@ -146,9 +146,9 @@ def main():
         ),
         epilog=(
             "Examples:\n"
-            "  Single file:    xpcs-webplot plot data.hdf --target-dir output\n"
-            "  Directory:      xpcs-webplot plot /data/dir --target-dir output --num-workers 8\n"
-            "  Monitor mode:   xpcs-webplot plot /data/dir --monitor --target-dir output\n"
+            "  Single file:    xpcs-webplot plot data.hdf --html-dir output\n"
+            "  Directory:      xpcs-webplot plot /data/dir --html-dir output --num-workers 8\n"
+            "  Monitor mode:   xpcs-webplot plot /data/dir --monitor --html-dir output\n"
             "  High-res plots: xpcs-webplot plot data.hdf --dpi 300 --num-img 6\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter

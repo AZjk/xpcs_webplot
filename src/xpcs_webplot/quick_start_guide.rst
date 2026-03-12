@@ -52,7 +52,7 @@ Step 2: Monitor and Convert Results to HTML
 
 .. code-block:: bash
 
-   xpcs_webplot plot /path/to/results --monitor --target-dir /path/to/htmls --num-workers 4
+   xpcs_webplot plot /path/to/results --monitor --html-dir /path/to/htmls --num-workers 4
 
 - Replace ``/path/to/...`` with actual directories.
 - ``htmls`` folder must be accessible by public machines, e.g.:
@@ -65,7 +65,7 @@ xpcs_webplot plot – Full CLI Reference
 
 .. code-block:: bash
 
-   xpcs_webplot plot [-h] [--target-dir TARGET_DIR]
+   xpcs_webplot plot [-h] [--html-dir HTML_DIR]
                      [--image-only] [--num-img NUM_IMG]
                      [--dpi DPI] [--overwrite]
                      [--monitor] [--num-workers NUM_WORKERS]
@@ -78,7 +78,7 @@ xpcs_webplot plot – Full CLI Reference
 
 **Options:**
 
-- ``--target-dir TARGET_DIR``: output directory (default: ``/tmp``)
+- ``--html-dir HTML_DIR``: output directory (default: ``/tmp``)
 - ``--image-only``: only generate images, no HTML
 - ``--num-img NUM_IMG``: number of images per row (default: 4)
 - ``--dpi DPI``: image resolution - controls DPI for output images (default: 240). For 4K monitors, DPI can be set to 240 to produce images with 3840 horizontal pixels
@@ -109,11 +109,11 @@ xpcs_webplot serve – Full CLI Reference
 
 .. code-block:: bash
 
-   xpcs_webplot serve [-h] [--target-dir TARGET_DIR] [--port PORT]
+   xpcs_webplot serve [-h] [--port PORT] html_dir
 
-**Options:**
+**Arguments:**
 
-- ``--target-dir TARGET_DIR``: the plot directory to host the server (default: current directory ``.``)
+- ``html_dir``: the plot directory to host the server
 - ``--port PORT``: port to run the HTTP server (default: 8081)
 
 The server will display both local and network URLs for access:
@@ -144,13 +144,13 @@ Usage Examples
 
 .. code-block:: bash
 
-   xpcs_webplot plot /path/to/result.hdf --target-dir /output/dir
+   xpcs_webplot plot /path/to/result.hdf --html-dir /output/dir
 
 **Monitor a directory for new files:**
 
 .. code-block:: bash
 
-   xpcs_webplot plot /path/to/results --monitor --target-dir /output/dir --num-workers 8
+   xpcs_webplot plot /path/to/results --monitor --html-dir /output/dir --num-workers 8
 
 **Generate high-resolution images only:**
 
@@ -162,7 +162,7 @@ Usage Examples
 
 .. code-block:: bash
 
-   xpcs_webplot serve --target-dir /path/to/htmls --port 8080
+   xpcs_webplot serve /path/to/htmls --port 8080
 
 **Combine existing HTML files:**
 
