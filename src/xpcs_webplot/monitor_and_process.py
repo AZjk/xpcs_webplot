@@ -1,6 +1,8 @@
+import glob
 import os
 import time
 import multiprocessing
+from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from .webplot_cli import convert_one_file
@@ -277,7 +279,7 @@ def producer(folder_path, task_queue, stop_flag):
     return event_handler
 
 
-def consumer(consumer_id, task_queue, stop_flag, stats_dict, **analysis_kwargs):
+def consumer(consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **analysis_kwargs):
     """
     Process HDF5 files from the queue.
 
@@ -328,7 +330,8 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, **analysis_kwargs):
             logger.info(f"[Consumer-{consumer_id}] Processing: {file_path}")
             try:
                 convert_one_file(file_path, **analysis_kwargs)
-                combine_all_htmls(analysis_kwargs["html_dir"])
+                with combine_lock:
+                    combine_all_htmls(analysis_kwargs["html_dir"])
                 processed += 1
             except Exception as e:
                 logger.error(
@@ -411,10 +414,29 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     # Shared stop flag
     # 'b' means boolean (True/False)
     stop_flag = multiprocessing.Value('b', False)
-    
+
+    # Lock to serialize combine_all_htmls across consumers
+    combine_lock = multiprocessing.Lock()
+
     # Shared statistics dictionary
     manager = multiprocessing.Manager()
     stats_dict = manager.dict()
+
+    # Pre-queue existing HDF files that haven't been processed yet.
+    # convert_xpcs_result already respects overwrite=False by skipping existing
+    # output dirs, so we can safely enqueue all existing files unconditionally.
+    html_dir = analysis_kwargs.get("html_dir", "/tmp")
+    overwrite = analysis_kwargs.get("overwrite", False)
+    existing_files = sorted(glob.glob(os.path.join(folder_path, "*.hdf")))
+    queued_existing = 0
+    for f in existing_files:
+        output_dir = Path(html_dir) / Path(f).stem
+        if overwrite or not output_dir.is_dir():
+            task_queue.put(f)
+            queued_existing += 1
+    if queued_existing:
+        logger.info(
+            f"[Main] Queued {queued_existing} existing unprocessed file(s) for conversion.")
 
     # Start Producer Process
     producer_process = multiprocessing.Process(
@@ -426,8 +448,9 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     consumer_processes = []
     for i in range(num_workers):
         p = multiprocessing.Process(
-            target=consumer, args=(
-                i, task_queue, stop_flag, stats_dict), kwargs=analysis_kwargs
+            target=consumer,
+            args=(i, task_queue, stop_flag, stats_dict, combine_lock),
+            kwargs=analysis_kwargs,
         )
         p.start()
         consumer_processes.append(p)
