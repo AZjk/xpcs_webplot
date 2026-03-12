@@ -238,6 +238,20 @@
     <div class="sidebar-wrapper">
       <h1>XPCS Results Dashboard</h1>
 
+      <div style="text-align:center; margin-bottom: 12px; color: #888; font-size: 13px;">
+        Updated <span id="last-updated-label">just now</span>
+        &nbsp;
+        <button id="refresh-btn" onclick="refreshList()" style="
+          padding: 4px 12px;
+          font-size: 13px;
+          border: 1px solid #1bc0dd;
+          border-radius: 4px;
+          background: white;
+          color: #1bc0dd;
+          cursor: pointer;
+        ">&#x21bb; Refresh</button>
+      </div>
+
       <div class="filters">
         <div class="filter-row">
           <div class="filter-group">
@@ -459,6 +473,63 @@
     // Initialize
     updateSortArrows();
     {% endif %}
+
+    // ── Last-updated timer ──────────────────────────────────────────────────
+    let lastUpdatedAt = Date.now();
+
+    function formatElapsed(ms) {
+      const s = Math.floor(ms / 1000);
+      if (s < 60)   return s + ' second' + (s === 1 ? '' : 's') + ' ago';
+      const m = Math.floor(s / 60);
+      if (m < 60)   return m + ' minute' + (m === 1 ? '' : 's') + ' ago';
+      const h = Math.floor(m / 60);
+      if (h < 24)   return h + ' hour'   + (h === 1 ? '' : 's') + ' ago';
+      const d = Math.floor(h / 24);
+      return d + ' day' + (d === 1 ? '' : 's') + ' ago';
+    }
+
+    setInterval(function () {
+      document.getElementById('last-updated-label').textContent =
+        formatElapsed(Date.now() - lastUpdatedAt);
+    }, 5000);
+
+    async function refreshList() {
+      const btn = document.getElementById('refresh-btn');
+      btn.disabled = true;
+      btn.textContent = '⟳ Refreshing…';
+      try {
+        const resp = await fetch(window.location.href, { cache: 'no-store' });
+        const html  = await resp.text();
+        const parser = new DOMParser();
+        const doc    = parser.parseFromString(html, 'text/html');
+
+        {% if data_type == 'flat' %}
+        // Update the data array from the refreshed page's inline JSON
+        const scripts = doc.querySelectorAll('script');
+        for (const s of scripts) {
+          const m = s.textContent.match(/let allData\s*=\s*(\[[\s\S]*?\]);/);
+          if (m) { allData = JSON.parse(m[1]); break; }
+        }
+        document.getElementById('total-count').textContent = allData.length;
+        filterData();
+        {% else %}
+        // For subdirs view, replace the table body
+        const newTbody = doc.querySelector('#subdirs-table tbody');
+        const oldTbody = document.querySelector('#subdirs-table tbody');
+        if (newTbody && oldTbody) oldTbody.innerHTML = newTbody.innerHTML;
+        const newCount = doc.getElementById('total-count');
+        if (newCount) document.getElementById('total-count').textContent = newCount.textContent;
+        {% endif %}
+
+        lastUpdatedAt = Date.now();
+        document.getElementById('last-updated-label').textContent = 'just now';
+      } catch(e) {
+        console.error('Refresh failed', e);
+      }
+      btn.disabled = false;
+      btn.textContent = '↻ Refresh';
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     // Resizer Logic
     document.addEventListener('DOMContentLoaded', function () {
