@@ -114,7 +114,7 @@ xpcs_webplot serve – Full CLI Reference
 **Arguments:**
 
 - ``html_dir``: the plot directory to host the server
-- ``--port PORT``: port to run the HTTP server (default: 8081)
+- ``--port PORT``: port to run the HTTP server (default: 8080). Ports blocked by browsers (e.g. 5000, 6000) are rejected.
 
 The server will display both local and network URLs for access:
 

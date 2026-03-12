@@ -1,22 +1,102 @@
 import argparse
-import logging
-import sys
-import os
 import glob
-from .webplot_cli import convert_one_file, convert_many_files 
+import logging
+import os
+import sys
+
+from .flask_app import create_app
 from .html_utlits import combine_all_htmls
 from .monitor_and_process import monitor_and_process
-from .flask_app import create_app
+from .webplot_cli import convert_many_files, convert_one_file
 
-
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s",
-                    datefmt="%m-%d %H:%M:%S")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s.%(msecs)03d %(name)s %(levelname)s | %(message)s",
+    datefmt="%m-%d %H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 
+# Ports blocked by browsers (Firefox/Chrome) per WHATWG Fetch spec + X11 port 6000.
+# Connecting to these ports is rejected with ERR_UNSAFE_PORT / "This address is restricted".
+_BROWSER_BLOCKED_PORTS = {
+    1,
+    7,
+    9,
+    11,
+    13,
+    15,
+    17,
+    19,
+    21,
+    22,
+    23,
+    25,
+    37,
+    42,
+    43,
+    53,
+    77,
+    79,
+    80,
+    87,
+    95,
+    101,
+    102,
+    103,
+    104,
+    107,
+    109,
+    110,
+    111,
+    113,
+    115,
+    117,
+    119,
+    123,
+    135,
+    139,
+    143,
+    179,
+    389,
+    427,
+    443,
+    444,
+    445,
+    465,
+    513,
+    514,
+    515,
+    526,
+    530,
+    531,
+    532,
+    540,
+    548,
+    554,
+    556,
+    563,
+    587,
+    601,
+    636,
+    993,
+    995,
+    2049,
+    3659,
+    4045,
+    5000,
+    6000,
+    6665,
+    6666,
+    6667,
+    6668,
+    6669,
+    6697,
+    10080,
+}
 
-def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
+
+def run_flask_server(html_folder=".", port=8080, host="0.0.0.0"):
     """
     Start Flask web server to serve XPCS webplot results.
 
@@ -28,7 +108,8 @@ def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
     html_folder : str, optional
         Path to the folder containing HTML results to serve. Default is "." (current directory).
     port : int, optional
-        Port number on which to run the Flask server. Default is 5000.
+        Port number on which to run the Flask server. Default is 8080.
+        Must not be a port blocked by browsers (e.g. 5000, 6000).
     host : str, optional
         Host address to bind the server to. Use "0.0.0.0" to make the server
         accessible from other machines on the network, or "127.0.0.1" for
@@ -52,15 +133,22 @@ def run_flask_server(html_folder=".", port=5000, host="0.0.0.0"):
     >>> run_flask_server('html', port=8080, host='127.0.0.1')
     Starting XPCS WebPlot Flask server...
     """
+    if port in _BROWSER_BLOCKED_PORTS:
+        logger.error(
+            f"Port {port} is blocked by browsers and cannot be used. "
+            f"Please choose a different port (e.g. 8080, 8081, 8888, 9000)."
+        )
+        return
+
     app = create_app(html_folder)
-    
+
     print(f"Starting XPCS WebPlot Flask server...")
     print(f"HTML folder: {html_folder}")
     print(f"Server running at:")
     print(f" - Local:   http://localhost:{port}")
     print(f" - Network: http://{host}:{port}")
     print("Press Ctrl+C to stop the server")
-    
+
     app.run(debug=False, host=host, port=port)
 
 
@@ -81,14 +169,14 @@ def main():
     Notes
     -----
     The CLI supports the following commands:
-    
+
     plot command:
         Convert HDF files to web format with plots and HTML summaries.
         Can process single files, directories, or monitor directories for new files.
-        
+
     combine command:
         Generate a combined index page for multiple HTML results.
-        
+
     serve command:
         Launch Flask web server to browse and view results interactively.
 
@@ -102,7 +190,7 @@ def main():
 
     Monitor a directory for new files:
     $ xpcs-webplot plot /path/to/data --monitor --html-dir output
-    
+
     Serve results with Flask:
     $ xpcs-webplot serve output --port 8080
 
@@ -127,13 +215,13 @@ def main():
             "  xpcs-webplot combine output\n"
             "  xpcs-webplot serve output --port 8080\n"
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(
         dest="command",
         title="commands",
         description="Choose one of the following commands:",
-        help="Command to execute"
+        help="Command to execute",
     )
 
     plot_command = subparsers.add_parser(
@@ -151,12 +239,12 @@ def main():
             "  Monitor mode:   xpcs-webplot plot /data/dir --monitor --html-dir output\n"
             "  High-res plots: xpcs-webplot plot data.hdf --dpi 300 --num-img 6\n"
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     plot_command.add_argument(
         "fname",
         type=str,
-        help="Path to HDF5 file or directory containing HDF files to process"
+        help="Path to HDF5 file or directory containing HDF files to process",
     )
 
     plot_command.add_argument(
@@ -164,13 +252,13 @@ def main():
         type=str,
         nargs="?",
         default="/tmp",
-        help="Output directory for generated HTML and image files (default: /tmp)"
+        help="Output directory for generated HTML and image files (default: /tmp)",
     )
 
     plot_command.add_argument(
         "--image-only",
         action="store_true",
-        help="Generate only plot images without HTML summary pages"
+        help="Generate only plot images without HTML summary pages",
     )
 
     plot_command.add_argument(
@@ -178,7 +266,7 @@ def main():
         type=int,
         nargs="?",
         default=4,
-        help="Number of plot images to display per row in HTML output (default: 4)"
+        help="Number of plot images to display per row in HTML output (default: 4)",
     )
 
     plot_command.add_argument(
@@ -189,13 +277,13 @@ def main():
         help=(
             "Image resolution in dots per inch. Higher values produce sharper images. "
             "For 4K monitors, use 240 for 3840px width. For HD, use 120-150. (default: 240)"
-        )
+        ),
     )
 
     plot_command.add_argument(
         "--overwrite",
         action="store_true",
-        help="Overwrite existing output files if they already exist"
+        help="Overwrite existing output files if they already exist",
     )
 
     plot_command.add_argument(
@@ -204,34 +292,34 @@ def main():
         help=(
             "Monitor the directory continuously for new HDF files and process them automatically. "
             "Only works when fname is a directory. Press Ctrl+C to stop monitoring."
-        )
+        ),
     )
 
     plot_command.add_argument(
         "--num-workers",
         type=int,
         default=8,
-        help="Number of parallel worker processes for batch file conversion (default: 8)"
+        help="Number of parallel worker processes for batch file conversion (default: 8)",
     )
     plot_command.add_argument(
         "--max-running-time",
         type=int,
         default=86400 * 7,
-        help="Maximum time in seconds to run in monitor mode before auto-stopping (default: 604800 = 7 days)"
+        help="Maximum time in seconds to run in monitor mode before auto-stopping (default: 604800 = 7 days)",
     )
     plot_command.add_argument(
         "--save-result",
         action="store_true",
         default=True,
-        help="Save XPCS result data files (SAXS, g2, twotime) to disk (default: True)"
+        help="Save XPCS result data files (SAXS, g2, twotime) to disk (default: True)",
     )
     plot_command.add_argument(
         "--no-save-result",
         dest="save_result",
         action="store_false",
-        help="Skip saving XPCS result data files, only generate plots and HTML"
+        help="Skip saving XPCS result data files, only generate plots and HTML",
     )
-    
+
     combine_command = subparsers.add_parser(
         "combine",
         help="Combine multiple HTML results into a single index page",
@@ -240,19 +328,16 @@ def main():
             "in the specified directory. This creates a master summary page for easy navigation "
             "across multiple XPCS analysis results."
         ),
-        epilog=(
-            "Example:\n"
-            "  xpcs-webplot combine /path/to/output\n"
-        ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        epilog=("Example:\n  xpcs-webplot combine /path/to/output\n"),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     combine_command.add_argument(
         "html_dir",
         type=str,
         nargs="?",
-        help="Directory containing HTML files to combine into a single index page"
+        help="Directory containing HTML files to combine into a single index page",
     )
-    
+
     serve_command = subparsers.add_parser(
         "serve",
         help="Start Flask web server to browse and view HTML results interactively",
@@ -269,20 +354,20 @@ def main():
             "After starting, access the server at http://localhost:<port>\n"
             "Press Ctrl+C to stop the server.\n"
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     serve_command.add_argument(
         "html_dir",
         type=str,
         nargs="?",
         default=".",
-        help="Directory containing HTML result files to serve (default: current directory)"
+        help="Directory containing HTML result files to serve (default: current directory)",
     )
     serve_command.add_argument(
         "--port",
         type=int,
-        default=5000,
-        help="Port number for the Flask server (default: 5000)"
+        default=8080,
+        help="Port number for the Flask server (default: 8080). Ports blocked by browsers (e.g. 5000, 6000) are rejected.",
     )
     serve_command.add_argument(
         "--host",
@@ -291,9 +376,9 @@ def main():
         help=(
             "Host address to bind the server. Use 0.0.0.0 for network access or "
             "127.0.0.1 for localhost only (default: 0.0.0.0)"
-        )
+        ),
     )
-    
+
     kwargs = vars(parser.parse_args())
     logger.info("|".join([f"{k}:{v}" for k, v in kwargs.items()]))
 
@@ -305,7 +390,7 @@ def main():
         # a single file
         if os.path.isfile(fname):
             kwargs.pop("num_workers", None)
-            kwargs.pop('max_running_time', None)
+            kwargs.pop("max_running_time", None)
             convert_one_file(fname, **kwargs)
         # a directory rather than a single file
         elif os.path.isdir(fname):
@@ -314,7 +399,7 @@ def main():
                 if len(flist) == 0:
                     logger.error(f"No hdf files found in {fname}")
                     return
-                kwargs.pop('max_running_time', None)
+                kwargs.pop("max_running_time", None)
                 convert_many_files(flist, **kwargs)
             else:
                 # Validate directory is accessible before starting monitor
