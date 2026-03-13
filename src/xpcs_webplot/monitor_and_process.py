@@ -64,6 +64,7 @@ class HDF5FileHandler(FileSystemEventHandler):
     This handler is designed to work with the watchdog library's Observer
     pattern for file system monitoring.
     """
+
     def __init__(self, task_queue, stop_flag, max_wait=60, check_interval=0.5):
         self.task_queue = task_queue
         self.stop_flag = stop_flag
@@ -164,7 +165,8 @@ class HDF5FileHandler(FileSystemEventHandler):
             self.task_queue.put(file_path)  # Add to queue
         else:
             logger.warning(
-                f"[Producer] Skipping {file_path}: File may be incomplete or locked.")
+                f"[Producer] Skipping {file_path}: File may be incomplete or locked."
+            )
             self.failed_files.append(file_path)
 
     def wait_for_file_stability(self, file_path):
@@ -189,7 +191,7 @@ class HDF5FileHandler(FileSystemEventHandler):
         The function waits until:
         1. File size stops changing between checks
         2. File can be opened successfully with h5py
-        
+
         If max_wait time is exceeded, returns False.
         """
         t0 = time.time()
@@ -268,18 +270,21 @@ def producer(folder_path, task_queue, stop_flag):
 
     observer.stop()
     observer.join()
-    
+
     # Log failed files summary
     if event_handler.failed_files:
         logger.warning(
-            f"[Producer] {len(event_handler.failed_files)} file(s) failed stability check:")
+            f"[Producer] {len(event_handler.failed_files)} file(s) failed stability check:"
+        )
         for failed_file in event_handler.failed_files:
             logger.warning(f"  - {failed_file}")
-    
+
     return event_handler
 
 
-def consumer(consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **analysis_kwargs):
+def consumer(
+    consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **analysis_kwargs
+):
     """
     Process HDF5 files from the queue.
 
@@ -320,7 +325,7 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **ana
     """
     processed = 0
     failed = 0
-    
+
     while not stop_flag.value:
         try:
             file_path = task_queue.get(timeout=5)  # Timeout to avoid hanging
@@ -336,7 +341,8 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **ana
             except Exception as e:
                 logger.error(
                     f"[Consumer-{consumer_id}] Failed to process {file_path}: {e}",
-                    exc_info=True)
+                    exc_info=True,
+                )
                 failed += 1
 
         except multiprocessing.queues.Empty:
@@ -345,15 +351,18 @@ def consumer(consumer_id, task_queue, stop_flag, stats_dict, combine_lock, **ana
             time.sleep(1)
 
     # Update shared statistics
-    stats_dict[f'consumer_{consumer_id}_processed'] = processed
-    stats_dict[f'consumer_{consumer_id}_failed'] = failed
-    
+    stats_dict[f"consumer_{consumer_id}_processed"] = processed
+    stats_dict[f"consumer_{consumer_id}_failed"] = failed
+
     logger.info(
         f"[Consumer-{consumer_id}] Stop flag set. Exiting. "
-        f"Processed: {processed}, Failed: {failed}")
+        f"Processed: {processed}, Failed: {failed}"
+    )
 
 
-def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **analysis_kwargs):
+def monitor_and_process(
+    folder_path, num_workers=3, max_running_time=3600, **analysis_kwargs
+):
     """
     Monitor folder for new HDF files and process them with time limit.
 
@@ -388,11 +397,11 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
     2. Multiple consumer processes convert files in parallel
     3. Shared queue coordinates work distribution
     4. Shared stop flag enables graceful shutdown
-    
+
     The monitoring stops when:
     - max_running_time is reached
     - KeyboardInterrupt (Ctrl+C) is received
-    
+
     All processes are joined before the function returns.
 
     See Also
@@ -413,7 +422,7 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
 
     # Shared stop flag
     # 'b' means boolean (True/False)
-    stop_flag = multiprocessing.Value('b', False)
+    stop_flag = multiprocessing.Value("b", False)
 
     # Lock to serialize combine_all_htmls across consumers
     combine_lock = multiprocessing.Lock()
@@ -436,7 +445,8 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
             queued_existing += 1
     if queued_existing:
         logger.info(
-            f"[Main] Queued {queued_existing} existing unprocessed file(s) for conversion.")
+            f"[Main] Queued {queued_existing} existing unprocessed file(s) for conversion."
+        )
 
     # Start Producer Process
     producer_process = multiprocessing.Process(
@@ -455,10 +465,34 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
         p.start()
         consumer_processes.append(p)
 
-    # Monitor running time
+    # Monitor running time; restart dead consumers
+    next_consumer_id = num_workers  # IDs for replacement workers
     try:
         while time.time() - start_time < max_running_time:
-            time.sleep(1)  # Keep checking time every second
+            time.sleep(5)
+            if stop_flag.value:
+                break
+            for idx, p in enumerate(consumer_processes):
+                if not p.is_alive():
+                    exit_code = p.exitcode
+                    logger.warning(
+                        f"[Main] Consumer-{idx} died (exit code {exit_code}). "
+                        f"Restarting as Consumer-{next_consumer_id}."
+                    )
+                    new_p = multiprocessing.Process(
+                        target=consumer,
+                        args=(
+                            next_consumer_id,
+                            task_queue,
+                            stop_flag,
+                            stats_dict,
+                            combine_lock,
+                        ),
+                        kwargs=analysis_kwargs,
+                    )
+                    new_p.start()
+                    consumer_processes[idx] = new_p
+                    next_consumer_id += 1
     except KeyboardInterrupt:
         logger.info("\n[Main] Stopping all workers due to user interruption.")
 
@@ -478,16 +512,17 @@ def monitor_and_process(folder_path, num_workers=3, max_running_time=3600, **ana
         p.join()
 
     # Calculate and log final statistics
-    total_processed = sum(v for k, v in stats_dict.items() if k.endswith('_processed'))
-    total_failed = sum(v for k, v in stats_dict.items() if k.endswith('_failed'))
+    total_processed = sum(v for k, v in stats_dict.items() if k.endswith("_processed"))
+    total_failed = sum(v for k, v in stats_dict.items() if k.endswith("_failed"))
     elapsed_time = time.time() - start_time
-    
+
     logger.info("[Main] All workers stopped. Monitoring session summary:")
-    logger.info(f"  - Total runtime: {elapsed_time:.1f} seconds ({elapsed_time/3600:.2f} hours)")
+    logger.info(
+        f"  - Total runtime: {elapsed_time:.1f} seconds ({elapsed_time / 3600:.2f} hours)"
+    )
     logger.info(f"  - Files successfully processed: {total_processed}")
     logger.info(f"  - Files failed during processing: {total_failed}")
     logger.info(f"  - Total files attempted: {total_processed + total_failed}")
     if total_processed + total_failed > 0:
         success_rate = (total_processed / (total_processed + total_failed)) * 100
         logger.info(f"  - Success rate: {success_rate:.1f}%")
-
