@@ -1,6 +1,7 @@
 import logging
 import time
 import traceback
+import warnings
 from datetime import datetime
 from pathlib import Path
 import numpy as np
@@ -83,7 +84,9 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
 
     # Save saxs 2D data
     saxs_2d_path = data_dir / "saxs_2d.tif"
-    skio.imsave(saxs_2d_path, xf_obj.saxs_2d.astype(np.float32))
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning, module="skimage")
+        skio.imsave(saxs_2d_path, xf_obj.saxs_2d.astype(np.float32))
 
     # Save correlation functions
     if "Multitau" in xf_obj.atype:
@@ -110,7 +113,9 @@ def save_xpcs_result(xf_obj: XF, top_dir: Path):
             #     c2_val.append(c2)
             #     label.append(xf_obj.get_qbin_label(qidx))  # qidx is one-based
             _c2_path = data_dir / f"c2_{n:04d}.tif"
-            skio.imsave(_c2_path, c2.astype(np.float32))
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning, module="skimage")
+                skio.imsave(_c2_path, c2.astype(np.float32))
 
         # Save twotime g2 and g2 segments
         shape = xf_obj.c2_g2.shape

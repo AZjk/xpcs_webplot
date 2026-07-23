@@ -369,6 +369,8 @@ class NpEncoder(json.JSONEncoder):
             return obj.tolist()
         if isinstance(obj, np.bool_):  # Handle NumPy boolean
             return bool(obj)
+        if isinstance(obj, bytes):
+            return obj.decode('utf-8', errors='replace')
         return super().default(obj)  # Use default method for other types
 
 
